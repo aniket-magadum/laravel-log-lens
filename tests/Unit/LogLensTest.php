@@ -1,10 +1,7 @@
 <?php
 
 use AniketMagadum\LogLens\LogLens;
-use AniketMagadum\LogLens\Tests\TestCase;
 use Illuminate\Support\Facades\File;
-
-uses(TestCase::class);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

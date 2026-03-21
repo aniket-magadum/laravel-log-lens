@@ -4,6 +4,10 @@
 # Composer lock file — packages should not commit this
 composer.lock
 
+# Testbench workbench (local dev environment, not part of the package)
+/workbench/
+/.testbench/
+
 # PHPUnit / Pest cache
 .phpunit.cache/
 .phpunit.result.cache

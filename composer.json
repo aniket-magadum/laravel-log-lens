@@ -26,7 +26,7 @@
         "illuminate/routing": "^13.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^10.0",
+        "orchestra/testbench": "^11.0",
         "pestphp/pest": "^3.0",
         "phpstan/phpstan": "^2.1"
     },
@@ -37,7 +37,10 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "AniketMagadum\\LogLens\\Tests\\": "tests/"
+            "AniketMagadum\\LogLens\\Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
         }
     },
     "extra": {
@@ -54,6 +57,26 @@
     "prefer-stable": true,
     "scripts": {
         "test": "vendor/bin/pest",
-        "analyse": "vendor/bin/phpstan analyse --memory-limit=256M"
+        "analyse": "vendor/bin/phpstan analyse --memory-limit=256M",
+        "post-autoload-dump": [
+            "@clear",
+            "@prepare"
+        ],
+        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi"
+        ],
+        "lint": [
+            "@php vendor/bin/phpstan analyse --verbose --ansi"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
     }
 }
