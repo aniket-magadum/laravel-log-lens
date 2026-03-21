@@ -75,6 +75,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            flex-wrap: wrap;
         }
 
         /* Summary badges */
@@ -196,6 +197,77 @@
             flex: 1;
             padding: 0.05rem 0.25rem;
         }
+
+        /* Context filter chips */
+        .ctx-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: #0d2922;
+            border: 1px solid #134e3e;
+            color: #5eead4;
+            border-radius: 9999px;
+            padding: 0.1rem 0.4rem 0.1rem 0.5rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            max-width: 240px;
+        }
+
+        .ctx-filter-chip > span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ctx-filter-chip .chip-remove {
+            background: none;
+            border: none;
+            color: #5eead4;
+            cursor: pointer;
+            font-size: 0.85rem;
+            line-height: 1;
+            padding: 0;
+            opacity: 0.65;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .ctx-filter-chip .chip-remove:hover { opacity: 1; }
+
+        /* Context filter row */
+        .ctx-filter-row {
+            flex: 0 0 100%;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            padding-top: 0.1rem;
+        }
+
+        .ctx-filter-label {
+            font-size: 0.7rem;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .ctx-select {
+            background: #1a2540;
+            border: 1px solid #334155;
+            color: #cbd5e1;
+            border-radius: 0.375rem;
+            padding: 0.28rem 0.55rem;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            max-width: 170px;
+        }
+
+        .ctx-select:focus { border-color: #6366f1; }
+        .ctx-select option { background: #1e293b; }
 
         /* File dropdown */
         .file-dropdown { position: relative; }
@@ -498,6 +570,7 @@
             .filter-strip { padding: 0.5rem 1rem; }
 
             .filter-strip-inner { flex-wrap: wrap; gap: 0.4rem; }
+            .ctx-select { flex: 1; min-width: 100px; max-width: none; }
             .file-dropdown { flex: 0 0 auto; }
             .file-dropdown-btn { white-space: nowrap; }
             .filters input[type=text] { flex: 1 1 0; min-width: 120px; }
@@ -649,6 +722,33 @@
                     <button type="submit" class="btn btn-primary">Filter</button>
                     <a href="{{ route('log-lens.index') }}" class="btn btn-secondary">Reset</a>
                 </div>
+
+                {{-- Context filter row --}}
+                @if (!empty($contextKeyValues) || !empty($contextFilters))
+                    <div class="ctx-filter-row">
+                        @foreach ($contextFilters as $ctxKey => $ctxVal)
+                            <span class="ctx-filter-chip">
+                                <input type="hidden" name="ctx[{{ $ctxKey }}]" value="{{ $ctxVal }}">
+                                <span title="{{ $ctxKey }}: {{ $ctxVal }}">{{ $ctxKey }}: {{ $ctxVal }}</span>
+                                <button type="button" class="chip-remove" onclick="removeCtxFilter(event, {{ json_encode($ctxKey) }})" title="Remove">&#x2715;</button>
+                            </span>
+                        @endforeach
+
+                        @if (!empty($contextKeyValues))
+                            <span class="ctx-filter-label">ctx:</span>
+                            <select id="ctxKeySelect" class="ctx-select" onchange="populateCtxValues(this.value)">
+                                <option value="">key&hellip;</option>
+                                @foreach (array_keys($contextKeyValues) as $ctxKey)
+                                    <option value="{{ $ctxKey }}">{{ $ctxKey }}</option>
+                                @endforeach
+                            </select>
+                            <select id="ctxValSelect" class="ctx-select">
+                                <option value="">value&hellip;</option>
+                            </select>
+                            <button type="button" class="btn btn-secondary" style="padding: 0.28rem 0.65rem; font-size: 0.8125rem;" onclick="addCtxFilter()">Add</button>
+                        @endif
+                    </div>
+                @endif
             </form>
         </div>
     </div>
@@ -710,8 +810,8 @@
                                                     $display = is_array($val) ? json_encode($val, JSON_UNESCAPED_SLASHES) : (string) $val;
                                                 @endphp
                                                 <div class="context-pill"
-                                                     title="Click to search for this value"
-                                                     onclick="searchContext({{ json_encode($display) }})">
+                                                     title="{{ is_array($val) ? 'Click to search for this value' : 'Click to filter by '.$key }}"
+                                                     onclick="{{ is_array($val) ? 'searchContext('.json_encode($display).')' : 'filterByCtx('.json_encode($key).', '.json_encode($display).')' }}">
                                                     <span class="context-pill-key">{{ $key }}</span>
                                                     <span class="context-pill-val" title="{{ $display }}">{{ $display }}</span>
                                                 </div>
@@ -886,6 +986,51 @@
 
     function searchContext(value) {
         addSearchChip(value);
+    }
+
+    const ctxKeyValues = @json($contextKeyValues);
+
+    function populateCtxValues(key) {
+        const valSelect = document.getElementById('ctxValSelect');
+        while (valSelect.options.length > 1) { valSelect.remove(1); }
+        if (!key || !ctxKeyValues[key]) { return; }
+        ctxKeyValues[key].forEach(function (v) {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            valSelect.appendChild(opt);
+        });
+    }
+
+    function addCtxFilter() {
+        const key = document.getElementById('ctxKeySelect').value;
+        const val = document.getElementById('ctxValSelect').value;
+        if (!key || !val) { return; }
+        filterByCtx(key, val);
+    }
+
+    function filterByCtx(key, value) {
+        const form = document.getElementById('filter-form');
+        form.querySelectorAll('input[name="ctx[' + key + ']"]').forEach(function (el) { el.remove(); });
+        const input = document.createElement('input');
+        input.type  = 'hidden';
+        input.name  = 'ctx[' + key + ']';
+        input.value = value;
+        form.appendChild(input);
+        const pageInput = form.querySelector('input[name="page"]');
+        if (pageInput) { pageInput.value = '1'; }
+        form.submit();
+    }
+
+    function removeCtxFilter(event, key) {
+        event.stopPropagation();
+        const form = document.getElementById('filter-form');
+        const chip = event.target.closest('.ctx-filter-chip');
+        if (chip) { chip.remove(); }
+        form.querySelectorAll('input[name="ctx[' + key + ']"]').forEach(function (el) { el.remove(); });
+        const pageInput = form.querySelector('input[name="page"]');
+        if (pageInput) { pageInput.value = '1'; }
+        form.submit();
     }
 </script>
 </body>

@@ -21,11 +21,14 @@ class LogLensController extends Controller
             is_array($rawSearch) ? $rawSearch : (($rawSearch !== null && $rawSearch !== '') ? [$rawSearch] : [])
         ));
 
+        $contextFilters = array_filter((array) ($request->query('ctx') ?? []));
+
         $perPage = (int) config('log-lens.per_page', 50);
 
-        $logs = $this->logLens->filter($selectedLevels, $selectedSearches, $selectedLogFiles);
+        $logs = $this->logLens->filter($selectedLevels, $selectedSearches, $selectedLogFiles, $contextFilters);
         $logFiles = $this->logLens->getLogFileNames();
         $summary = $this->logLens->summary($selectedLogFiles);
+        $contextKeyValues = $this->logLens->getContextKeyValues($selectedLogFiles);
 
         $currentPage = (int) $request->query('page', 1);
         $totalLogs = $logs->count();
@@ -39,6 +42,8 @@ class LogLensController extends Controller
             'summary',
             'selectedLevels',
             'selectedSearches',
+            'contextFilters',
+            'contextKeyValues',
             'currentPage',
             'lastPage',
             'totalLogs',

@@ -202,3 +202,89 @@ it('resolves LogLens from the service container', function () {
 it('resolves LogLens via its log-lens alias', function () {
     expect(app('log-lens'))->toBeInstanceOf(LogLens::class);
 });
+
+// ─── Context filter ───────────────────────────────────────────────────────────
+
+it('filters entries by a context key-value pair via ctx[] query param', function () {
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.INFO: Login {\"user_id\":42,\"action\":\"login\"}\n".
+        "[2026-03-21 10:00:01] local.INFO: Logout {\"user_id\":99,\"action\":\"logout\"}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens?ctx[user_id]=42')
+        ->assertOk()
+        ->assertSee('Login')
+        ->assertDontSee('Logout');
+});
+
+it('returns no entries when context filter value does not match anything', function () {
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.INFO: Action {\"user_id\":42}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens?ctx[user_id]=999')
+        ->assertOk()
+        ->assertSee('No log entries');
+});
+
+it('applies multiple context key-value filters (AND semantics)', function () {
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.INFO: Alpha-login {\"user_id\":42,\"action\":\"login\"}\n".
+        "[2026-03-21 10:00:01] local.INFO: Alpha-logout {\"user_id\":42,\"action\":\"logout\"}\n".
+        "[2026-03-21 10:00:02] local.INFO: Beta-login {\"user_id\":99,\"action\":\"login\"}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens?ctx[user_id]=42&ctx[action]=login')
+        ->assertOk()
+        ->assertSee('Alpha-login')
+        ->assertDontSee('Alpha-logout')
+        ->assertDontSee('Beta-login');
+});
+
+it('renders active context filter chips in the view', function () {
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.INFO: Action {\"user_id\":42}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens?ctx[user_id]=42')
+        ->assertOk()
+        ->assertSee('ctx-filter-chip', false)
+        ->assertSee('user_id: 42');
+});
+
+it('renders the context filter key select when context key values are available', function () {
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.INFO: Action {\"role\":\"admin\"}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens')
+        ->assertOk()
+        ->assertSee('ctxKeySelect', false)
+        ->assertSee('role');
+});
+
+it('combines context filter with level and search filters', function () {
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.ERROR: Payment failed {\"action\":\"checkout\"}\n".
+        "[2026-03-21 10:00:01] local.INFO: Payment ok {\"action\":\"checkout\"}\n".
+        "[2026-03-21 10:00:02] local.ERROR: Login failed {\"action\":\"login\"}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens?level[]=error&search[]=payment&ctx[action]=checkout')
+        ->assertOk()
+        ->assertSee('Payment failed')
+        ->assertDontSee('Payment ok')
+        ->assertDontSee('Login failed');
+});

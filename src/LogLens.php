@@ -110,7 +110,7 @@ class LogLens
     }
 
     /** @return Collection<int, array<string, mixed>> */
-    public function filter(array $levels = [], array $searches = [], array $logFiles = []): Collection
+    public function filter(array $levels = [], array $searches = [], array $logFiles = [], array $contextFilters = []): Collection
     {
         $logs = $this->getLogs();
 
@@ -150,7 +150,57 @@ class LogLens
             });
         }
 
+        if (! empty($contextFilters)) {
+            $logs = $logs->filter(function (array $log) use ($contextFilters): bool {
+                foreach ($contextFilters as $key => $value) {
+                    $actual = $log['context'][$key] ?? null;
+                    if ($actual === null || (string) $actual !== (string) $value) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        }
+
         return $logs->sortByDesc('datetime')->values();
+    }
+
+    /**
+     * Returns all unique scalar context values grouped by key, skipping the
+     * "exception" key. Optionally scoped to a subset of log files.
+     *
+     * @param  array<int, string>  $logFiles
+     * @return array<string, array<int, string>>
+     */
+    public function getContextKeyValues(array $logFiles = []): array
+    {
+        $logs = $this->getLogs();
+
+        if (! empty($logFiles)) {
+            $logs = $logs->whereIn('file', $logFiles);
+        }
+
+        $map = [];
+
+        foreach ($logs as $log) {
+            foreach ($log['context'] as $key => $value) {
+                if ($key === 'exception' || ! is_scalar($value) || $value === '') {
+                    continue;
+                }
+
+                $map[$key][(string) $value] = true;
+            }
+        }
+
+        ksort($map);
+
+        return array_map(function (array $values): array {
+            $list = array_keys($values);
+            sort($list);
+
+            return $list;
+        }, $map);
     }
 
     /** @return array<string, int> */

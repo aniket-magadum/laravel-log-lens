@@ -372,3 +372,171 @@ it('filters the summary by log file', function () {
 it('returns an empty summary when no log files exist', function () {
     expect($this->logLens->summary())->toBeEmpty();
 });
+
+// ─── getContextKeyValues ──────────────────────────────────────────────────────
+
+it('returns an empty array when no logs exist', function () {
+    expect($this->logLens->getContextKeyValues())->toBeEmpty();
+});
+
+it('returns an empty array when logs have no context', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: No context',
+    ]);
+
+    expect($this->logLens->getContextKeyValues())->toBeEmpty();
+});
+
+it('collects unique scalar context values grouped by key', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: First {"user_id":42,"action":"login"}',
+        '[2026-03-21 10:00:01] local.INFO: Second {"user_id":99,"action":"login"}',
+    ]);
+
+    $result = $this->logLens->getContextKeyValues();
+
+    expect($result)->toHaveKey('user_id')
+        ->and($result['user_id'])->toBe([42, 99])  // PHP coerces numeric string array keys to int
+        ->and($result)->toHaveKey('action')
+        ->and($result['action'])->toBe(['login']);
+});
+
+it('deduplicates values within a key', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: A {"role":"admin"}',
+        '[2026-03-21 10:00:01] local.INFO: B {"role":"admin"}',
+        '[2026-03-21 10:00:02] local.INFO: C {"role":"user"}',
+    ]);
+
+    $result = $this->logLens->getContextKeyValues();
+
+    expect($result['role'])->toBe(['admin', 'user']);
+});
+
+it('excludes the exception key from context key values', function () {
+    $file = $this->storagePath.'/laravel.log';
+    $content = '[2026-03-21 10:00:00] production.ERROR: Fail {"exception":"[object] (Exception: oh no at file.php:1)'."\n".'#0 {main}'."\n".'"}';
+    file_put_contents($file, $content."\n");
+
+    $result = $this->logLens->getContextKeyValues();
+
+    expect($result)->not->toHaveKey('exception');
+});
+
+it('skips non-scalar context values', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: With nested {"tags":["a","b"],"user_id":7}',
+    ]);
+
+    $result = $this->logLens->getContextKeyValues();
+
+    expect($result)->toHaveKey('user_id')
+        ->and($result)->not->toHaveKey('tags');
+});
+
+it('returns keys sorted alphabetically', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: Entry {"zebra":"z","apple":"a","mango":"m"}',
+    ]);
+
+    $result = $this->logLens->getContextKeyValues();
+
+    expect(array_keys($result))->toBe(['apple', 'mango', 'zebra']);
+});
+
+it('returns values sorted alphabetically within each key', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: A {"status":"pending"}',
+        '[2026-03-21 10:00:01] local.INFO: B {"status":"active"}',
+        '[2026-03-21 10:00:02] local.INFO: C {"status":"closed"}',
+    ]);
+
+    $result = $this->logLens->getContextKeyValues();
+
+    expect($result['status'])->toBe(['active', 'closed', 'pending']);
+});
+
+it('scopes context key values to a specific log file', function () {
+    writeLog($this->storagePath.'/a.log', [
+        '[2026-03-21 10:00:00] local.INFO: From A {"role":"admin"}',
+    ]);
+    writeLog($this->storagePath.'/b.log', [
+        '[2026-03-21 10:00:01] local.INFO: From B {"role":"user","source":"api"}',
+    ]);
+
+    $result = $this->logLens->getContextKeyValues(['b.log']);
+
+    expect($result)->toHaveKey('role')
+        ->and($result['role'])->toBe(['user'])
+        ->and($result)->toHaveKey('source')
+        ->and($result)->not->toHaveKey('admin');
+});
+
+// ─── filter with contextFilters ───────────────────────────────────────────────
+
+it('filters logs by a single context key-value pair', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: Login {"user_id":42,"action":"login"}',
+        '[2026-03-21 10:00:01] local.INFO: Logout {"user_id":99,"action":"logout"}',
+    ]);
+
+    $results = $this->logLens->filter(contextFilters: ['user_id' => '42']);
+
+    expect($results)->toHaveCount(1)
+        ->and($results->first()['context']['user_id'])->toBe(42);
+});
+
+it('returns no results when context filter value does not match any entry', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: Action {"user_id":42}',
+    ]);
+
+    expect($this->logLens->filter(contextFilters: ['user_id' => '999']))->toBeEmpty();
+});
+
+it('returns no results when context filter key is absent from all entries', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: Action {"role":"admin"}',
+    ]);
+
+    expect($this->logLens->filter(contextFilters: ['user_id' => '42']))->toBeEmpty();
+});
+
+it('applies multiple context filters with AND semantics', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: A {"user_id":42,"action":"login"}',
+        '[2026-03-21 10:00:01] local.INFO: B {"user_id":42,"action":"logout"}',
+        '[2026-03-21 10:00:02] local.INFO: C {"user_id":99,"action":"login"}',
+    ]);
+
+    $results = $this->logLens->filter(contextFilters: ['user_id' => '42', 'action' => 'login']);
+
+    expect($results)->toHaveCount(1)
+        ->and($results->first()['message'])->toBe('A');
+});
+
+it('does not filter when contextFilters array is empty', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.INFO: One',
+        '[2026-03-21 10:00:01] local.ERROR: Two',
+    ]);
+
+    expect($this->logLens->filter(contextFilters: []))->toHaveCount(2);
+});
+
+it('combines context filters with level and search filters', function () {
+    writeLog($this->storagePath.'/laravel.log', [
+        '[2026-03-21 10:00:00] local.ERROR: Payment failed {"user_id":42,"action":"checkout"}',
+        '[2026-03-21 10:00:01] local.INFO: Payment ok {"user_id":42,"action":"checkout"}',
+        '[2026-03-21 10:00:02] local.ERROR: Login failed {"user_id":42,"action":"login"}',
+    ]);
+
+    $results = $this->logLens->filter(
+        levels: ['error'],
+        searches: ['payment'],
+        contextFilters: ['action' => 'checkout']
+    );
+
+    expect($results)->toHaveCount(1)
+        ->and($results->first()['message'])->toBe('Payment failed');
+});
