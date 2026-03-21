@@ -665,6 +665,59 @@
             color: #4ade80;
         }
 
+        .share-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            background: #0c1a2e;
+            border: 1px solid #1d4ed8;
+            color: #60a5fa;
+            font-size: 0.7rem;
+            font-family: inherit;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .share-btn:hover { background: #1e3a5f; color: #93c5fd; }
+
+        .resolve-all-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            background: transparent;
+            border: 1px solid #334155;
+            color: #64748b;
+            font-size: 0.7rem;
+            font-family: inherit;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .resolve-all-btn:hover { border-color: #22c55e; color: #4ade80; }
+
+        .log-summary.log-highlight > td { background: rgba(59,130,246,0.07) !important; }
+        .log-summary.log-highlight { outline: 2px solid #3b82f6; outline-offset: -2px; }
+
+        #log-lens-toast {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(4rem);
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #f1f5f9;
+            padding: 0.45rem 0.9rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        #log-lens-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
         .log-summary.resolved td { opacity: 0.55; }
         .log-summary.resolved .level-badge { filter: grayscale(0.5); }
 
@@ -803,6 +856,8 @@
     </style>
 </head>
 <body>
+
+<div id="log-lens-toast"></div>
 
 <div class="sticky-top">
     <header>
@@ -955,11 +1010,12 @@
                     @foreach ($pagedLogs as $log)
                         @php
                             $idx = $loop->index;
+                            $logHash = md5($log['datetime'].$log['level'].$log['message'].$log['file']);
                             $isResolvable = ! in_array($log['level'], ['debug', 'info']);
-                            $logId = $isResolvable ? md5($log['datetime'].$log['level'].$log['message'].$log['file']) : '';
+                            $logId = $isResolvable ? $logHash : '';
                             $isResolved = $isResolvable && in_array($logId, $resolvedIds, true);
                         @endphp
-                        <tr class="log-summary {{ $isResolved ? 'resolved' : '' }}" onclick="toggleRow({{ $idx }})">
+                        <tr id="log-{{ $logHash }}" class="log-summary {{ $isResolved ? 'resolved' : '' }}{{ $highlightLogId === $logHash ? ' log-highlight' : '' }}" data-log-message="{{ e($log['message']) }}" data-resolvable="{{ $isResolvable ? '1' : '0' }}" onclick="toggleRow({{ $idx }})">
                             <td class="datetime">{{ $log['datetime'] }}</td>
                             <td>
                                 <span class="level-badge level-{{ $log['level'] }}">{{ $log['level'] }}</span>
@@ -977,7 +1033,7 @@
                             </td>
                         </tr>
                         <tr class="log-detail" id="log-detail-{{ $idx }}">
-                            <td colspan="4">
+                            <td colspan="5">
                                 {{-- Meta strip --}}
                                 <div class="detail-meta">
                                     <div>Env: <span>{{ $log['environment'] }}</span></div>
@@ -986,6 +1042,16 @@
                                     <div class="resolved-badge-wrap" style="{{ $isResolved ? '' : 'display:none' }}">
                                         <span class="resolved-badge">&#10003; Resolved</span>
                                     </div>
+                                    <div>
+                                        <button class="share-btn" onclick="shareLog('{{ $logHash }}')" title="Copy shareable link">&#128279; Share</button>
+                                    </div>
+                                    @if ($isResolvable)
+                                        <div>
+                                            <button class="resolve-all-btn"
+                                                    onclick="resolveAllByMessage({{ json_encode($log['message']) }})"
+                                                    title="Resolve all log entries with this exact message">&#10003;&#10003; Resolve all similar</button>
+                                        </div>
+                                    @endif
                                 </div>
 
                                 {{-- Message body --}}
@@ -1325,7 +1391,8 @@
         form.submit();
     }
 
-    const resolveUrl = @json(route('log-lens.resolve'));
+    const resolveUrl    = @json(route('log-lens.resolve'));
+    const resolveAllUrl = @json(route('log-lens.resolve-all'));
     let resolvedCount = {{ $resolvedCount }};
     let pendingCount  = {{ $pendingCount }};
 
@@ -1378,6 +1445,91 @@
         })
         .catch(function () {});
     }
+
+    function resolveAllByMessage(message) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        fetch(resolveAllUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({ message: message }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const count = data.resolved || 0;
+            showToast(count === 0 ? 'Already all resolved' : count + ' entr' + (count === 1 ? 'y' : 'ies') + ' resolved');
+            pendingCount  = Math.max(0, pendingCount - count);
+            resolvedCount = resolvedCount + count;
+            updateResolvedStats();
+
+            // Update every matching visible row
+            const allSummaryRows = Array.from(document.querySelectorAll('tr.log-summary'));
+            allSummaryRows.forEach(function (row, idx) {
+                if (row.dataset.resolvable !== '1') { return; }
+                if (row.dataset.logMessage !== message) { return; }
+                if (row.classList.contains('resolved')) { return; }
+                row.classList.add('resolved');
+                const detailRow = document.getElementById('log-detail-' + idx);
+                if (detailRow) {
+                    const badgeWrap = detailRow.querySelector('.resolved-badge-wrap');
+                    if (badgeWrap) { badgeWrap.style.display = ''; }
+                }
+                const resolveBtn = row.querySelector('.resolve-btn');
+                if (resolveBtn) {
+                    resolveBtn.textContent = '\u2713';
+                    resolveBtn.title = 'Mark as unresolved';
+                    resolveBtn.classList.add('resolved');
+                }
+            });
+        })
+        .catch(function () {});
+    }
+
+    function shareLog(hash) {
+        const url = window.location.origin + window.location.pathname + '?log=' + hash;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function () {
+                showToast('Link copied!');
+            }).catch(function () { fallbackCopyText(url); });
+        } else {
+            fallbackCopyText(url);
+        }
+    }
+
+    function fallbackCopyText(text) {
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        try { document.execCommand('copy'); showToast('Link copied!'); }
+        catch (e) { showToast('Copy failed'); }
+        document.body.removeChild(el);
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('log-lens-toast');
+        if (!toast) { return; }
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2000);
+    }
+
+    (function () {
+        const params = new URLSearchParams(window.location.search);
+        const logId = params.get('log');
+        if (!logId) { return; }
+        const row = document.getElementById('log-' + logId);
+        if (!row) { return; }
+        const allRows = Array.from(document.querySelectorAll('.log-summary'));
+        const idx = allRows.indexOf(row);
+        if (idx !== -1) { toggleRow(idx); }
+        setTimeout(function () { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+    }());
 </script>
 </body>
 </html>

@@ -35,6 +35,31 @@ class LogLensController extends Controller
         $contextKeyValues = $this->logLens->getContextKeyValues($selectedLogFiles);
 
         $resolvedIds = $this->getResolvedIds();
+
+        $highlightLogId = (string) ($request->query('log') ?? '');
+        $highlightPos = null;
+        if ($highlightLogId !== '' && preg_match('/^[a-f0-9]{32}$/', $highlightLogId)) {
+            $allLogs = $this->logLens->filter([], [], [], []);
+            foreach ($allLogs as $i => $log) {
+                if (md5($log['datetime'].$log['level'].$log['message'].$log['file']) === $highlightLogId) {
+                    $highlightPos = $i;
+                    break;
+                }
+            }
+            if ($highlightPos !== null) {
+                $logs = $allLogs;
+                $selectedLevels = [];
+                $selectedSearches = [];
+                $selectedLogFiles = [];
+                $contextFilters = [];
+                $resolveFilter = 'all';
+            } else {
+                $highlightLogId = '';
+            }
+        } else {
+            $highlightLogId = '';
+        }
+
         $resolvableLogs = $logs->whereNotIn('level', ['debug', 'info']);
         $allIds = $resolvableLogs->map(fn ($log) => md5($log['datetime'].$log['level'].$log['message'].$log['file']))->all();
         $resolvedCount = count(array_intersect($resolvedIds, $allIds));
@@ -52,7 +77,9 @@ class LogLensController extends Controller
             )->values();
         }
 
-        $currentPage = (int) $request->query('page', 1);
+        $currentPage = $highlightPos !== null
+            ? (int) floor($highlightPos / $perPage) + 1
+            : (int) $request->query('page', 1);
         $totalLogs = $logs->count();
         $pagedLogs = $logs->forPage($currentPage, $perPage);
         $lastPage = (int) ceil($totalLogs / $perPage) ?: 1;
@@ -74,6 +101,7 @@ class LogLensController extends Controller
             'resolvedCount',
             'pendingCount',
             'resolveFilter',
+            'highlightLogId',
         ));
     }
 
@@ -98,6 +126,40 @@ class LogLensController extends Controller
         $this->saveResolvedIds($resolved);
 
         return response()->json(['resolved' => $isResolved]);
+    }
+
+    public function resolveAllByMessage(Request $request): JsonResponse
+    {
+        $message = (string) ($request->input('message') ?? '');
+
+        if ($message === '') {
+            return response()->json(['error' => 'Message is required'], 422);
+        }
+
+        $allLogs = $this->logLens->filter([], [], [], []);
+        $resolvedIds = $this->getResolvedIds();
+        $newCount = 0;
+
+        foreach ($allLogs as $log) {
+            if (in_array($log['level'], ['debug', 'info'])) {
+                continue;
+            }
+
+            if ($log['message'] !== $message) {
+                continue;
+            }
+
+            $id = md5($log['datetime'].$log['level'].$log['message'].$log['file']);
+
+            if (! in_array($id, $resolvedIds, true)) {
+                $resolvedIds[] = $id;
+                $newCount++;
+            }
+        }
+
+        $this->saveResolvedIds($resolvedIds);
+
+        return response()->json(['resolved' => $newCount]);
     }
 
     private function resolvedStoragePath(): string

@@ -8,4 +8,5 @@ Route::prefix(config('log-lens.route_prefix', 'log-lens'))
     ->group(function () {
         Route::get('/', LogLensController::class.'@index')->name('log-lens.index');
         Route::post('/resolve', LogLensController::class.'@toggleResolved')->name('log-lens.resolve');
+        Route::post('/resolve-all', LogLensController::class.'@resolveAllByMessage')->name('log-lens.resolve-all');
     });
