@@ -1,0 +1,42 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "aniket-magadum/laravel-log-lens",
+    "description": "A powerful Laravel log viewer and analyzer package.",
+    "keywords": [
+        "laravel",
+        "log",
+        "log-viewer",
+        "log-lens",
+        "debugging"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Aniket Magadum",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/support": "^13.0",
+        "illuminate/http": "^13.0",
+        "illuminate/routing": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AniketMagadum\\LogLens\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AniketMagadum\\LogLens\\LogLensServiceProvider"
+            ],
+            "aliases": {
+                "LogLens": "AniketMagadum\\LogLens\\Facades\\LogLens"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
