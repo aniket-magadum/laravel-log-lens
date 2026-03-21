@@ -33,6 +33,26 @@
 
         header span { font-size: 0.75rem; color: #64748b; }
 
+        .bmc-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: #FFDD00;
+            color: #000000;
+            font-size: 0.72rem;
+            font-weight: 600;
+            font-family: inherit;
+            padding: 0.3rem 0.7rem;
+            border-radius: 0.375rem;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: opacity 0.15s;
+            flex-shrink: 0;
+        }
+        .bmc-btn:hover { opacity: 0.85; }
+
         .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
 
         /* Sticky controls */
@@ -801,6 +821,7 @@
                         class="resolve-toggle-btn {{ $resolveFilter === 'resolved' ? 'active-resolved' : '' }}"
                         onclick="setResolveFilter('resolved')">&#10003; Resolved <span data-stat="resolved" class="resolve-toggle-count">{{ $resolvedCount }}</span></button>
             </div>
+            <a href="https://buymeacoffee.com/aniketmagadum" target="_blank" rel="noopener noreferrer" class="bmc-btn">&#9749; Buy me a coffee</a>
         </div>
     </header>
 
