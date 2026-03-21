@@ -565,7 +565,6 @@
         .exception-block pre {
             white-space: pre-wrap;
             word-break: break-word;
-            color: #fca5a5;
             font-family: inherit;
             font-size: 0.75rem;
             line-height: 1.65;
@@ -575,6 +574,9 @@
             border: 1px solid #450a0a;
             border-radius: 0.375rem;
         }
+
+        .exception-block .trace-app  { color: #fca5a5; }
+        .exception-block .trace-vendor { color: #3f4f60; }
 
         /* Empty state */
         .empty {
@@ -886,7 +888,13 @@
                                 @if ($hasException)
                                     <div class="exception-block">
                                         <div class="context-label">Exception</div>
-                                        <pre>{{ $log['context']['exception'] }}</pre>
+                                        @php
+                                            $excFormatted = implode("\n", array_map(function ($excLine) {
+                                                $cls = str_contains($excLine, '/vendor/') ? 'trace-vendor' : 'trace-app';
+                                                return '<span class="' . $cls . '">' . e($excLine) . '</span>';
+                                            }, explode("\n", $log['context']['exception'])));
+                                        @endphp
+                                        <pre>{!! $excFormatted !!}</pre>
                                     </div>
                                 @endif
                             </td>
