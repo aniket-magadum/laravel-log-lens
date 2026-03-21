@@ -132,6 +132,71 @@
 
         .filters input[type=text]:focus { border-color: #6366f1; }
 
+        /* Search chip input */
+        .search-chip-wrapper {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            background: #1a2540;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            flex: 1;
+            min-width: 0;
+            cursor: text;
+            transition: border-color 0.15s;
+        }
+
+        .search-chip-wrapper:focus-within { border-color: #6366f1; }
+
+        .search-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: #312e81;
+            border: 1px solid #4338ca;
+            color: #c7d2fe;
+            border-radius: 9999px;
+            padding: 0.1rem 0.5rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            max-width: 200px;
+        }
+
+        .search-chip span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chip-remove {
+            background: none;
+            border: none;
+            color: #a5b4fc;
+            cursor: pointer;
+            font-size: 0.85rem;
+            line-height: 1;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .chip-remove:hover { color: #e0e7ff; }
+
+        .search-chip-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #cbd5e1;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            min-width: 120px;
+            flex: 1;
+            padding: 0.05rem 0.25rem;
+        }
+
         /* File dropdown */
         .file-dropdown { position: relative; }
 
@@ -565,7 +630,20 @@
                     </div>
                 </div>
 
-                <input type="text" name="search" placeholder="Search messages…" value="{{ $search }}">
+                <div class="search-chip-wrapper" id="searchChipWrapper" onclick="document.getElementById('searchTextInput').focus()">
+                    @foreach ($selectedSearches as $term)
+                        <span class="search-chip">
+                            <span>{{ $term }}</span>
+                            <input type="hidden" name="search[]" value="{{ $term }}">
+                            <button type="button" class="chip-remove" onclick="removeSearchChip(event, this)" title="Remove">&#x2715;</button>
+                        </span>
+                    @endforeach
+                    <input type="text"
+                           id="searchTextInput"
+                           class="search-chip-input"
+                           placeholder="{{ empty($selectedSearches) ? 'Search… (Enter to add)' : 'Add another…' }}"
+                           autocomplete="off">
+                </div>
 
                 <div class="filter-actions">
                     <button type="submit" class="btn btn-primary">Filter</button>
@@ -755,16 +833,59 @@
         detail.classList.toggle('open', isOpen);
     }
 
-    function searchContext(value) {
-        const form  = document.getElementById('filter-form');
-        const input = form.querySelector('input[name="search"]');
-        if (input) {
-            input.value = value;
-            // Reset to page 1
-            const pageInput = form.querySelector('input[name="page"]');
-            if (pageInput) { pageInput.value = '1'; }
-            form.submit();
+    function addSearchChip(value) {
+        const term = value.trim();
+        if (term === '') { return; }
+
+        // Prevent duplicate chips
+        const existing = [...document.querySelectorAll('#searchChipWrapper input[name="search[]"]')]
+            .map(el => el.value.toLowerCase());
+        if (existing.includes(term.toLowerCase())) { return; }
+
+        const form = document.getElementById('filter-form');
+        const wrapper = document.getElementById('searchChipWrapper');
+        const textInput = document.getElementById('searchTextInput');
+
+        const chip = document.createElement('span');
+        chip.className = 'search-chip';
+        chip.innerHTML =
+            '<span>' + term.replace(/</g, '&lt;') + '</span>' +
+            '<input type="hidden" name="search[]" value="' + term.replace(/"/g, '&quot;') + '">' +
+            '<button type="button" class="chip-remove" onclick="removeSearchChip(event, this)" title="Remove">&#x2715;</button>';
+
+        wrapper.insertBefore(chip, textInput);
+        textInput.value = '';
+        textInput.placeholder = 'Add another…';
+
+        const pageInput = form.querySelector('input[name="page"]');
+        if (pageInput) { pageInput.value = '1'; }
+        form.submit();
+    }
+
+    function removeSearchChip(event, btn) {
+        event.stopPropagation();
+        const form = document.getElementById('filter-form');
+        btn.closest('.search-chip').remove();
+        const pageInput = form.querySelector('input[name="page"]');
+        if (pageInput) { pageInput.value = '1'; }
+        form.submit();
+    }
+
+    document.getElementById('searchTextInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addSearchChip(this.value);
+        } else if (e.key === 'Backspace' && this.value === '') {
+            // Remove last chip on backspace when input is empty
+            const chips = document.querySelectorAll('#searchChipWrapper .search-chip');
+            if (chips.length > 0) {
+                removeSearchChip(e, chips[chips.length - 1].querySelector('.chip-remove'));
+            }
         }
+    });
+
+    function searchContext(value) {
+        addSearchChip(value);
     }
 </script>
 </body>

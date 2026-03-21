@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static array getLogFiles()
  * @method static array getLogFileNames()
  * @method static Collection parseLogFile(string $filePath)
- * @method static Collection filter(array $levels = [], ?string $search = null, array $logFiles = [])
+ * @method static Collection filter(array $levels = [], array $searches = [], array $logFiles = [])
  * @method static array summary(array $logFiles = [])
  *
  * @see \AniketMagadum\LogLens\LogLens

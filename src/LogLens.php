@@ -110,7 +110,7 @@ class LogLens
     }
 
     /** @return Collection<int, array<string, mixed>> */
-    public function filter(array $levels = [], ?string $search = null, array $logFiles = []): Collection
+    public function filter(array $levels = [], array $searches = [], array $logFiles = []): Collection
     {
         $logs = $this->getLogs();
 
@@ -122,20 +122,31 @@ class LogLens
             $logs = $logs->whereIn('level', $levels);
         }
 
-        if ($search !== null && $search !== '') {
-            $needle = strtolower($search);
-            $logs = $logs->filter(function (array $log) use ($needle): bool {
-                if (str_contains(strtolower($log['message']), $needle)) {
-                    return true;
-                }
+        if (! empty($searches)) {
+            $logs = $logs->filter(function (array $log) use ($searches): bool {
+                foreach ($searches as $term) {
+                    $needle = strtolower((string) $term);
+                    if ($needle === '') {
+                        continue;
+                    }
 
-                foreach ($log['context'] as $value) {
-                    if (is_string($value) && str_contains(strtolower($value), $needle)) {
-                        return true;
+                    $matched = str_contains(strtolower($log['message']), $needle);
+
+                    if (! $matched) {
+                        foreach ($log['context'] as $value) {
+                            if (is_string($value) && str_contains(strtolower($value), $needle)) {
+                                $matched = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (! $matched) {
+                        return false; // All terms must match (AND logic)
                     }
                 }
 
-                return false;
+                return true;
             });
         }
 

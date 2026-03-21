@@ -27,6 +27,11 @@
             "AniketMagadum\\LogLens\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "AniketMagadum\\LogLens\\Tests\\": "tests/"
+        }
+    },
     "extra": {
         "laravel": {
             "providers": [
