@@ -34,30 +34,68 @@
 
         .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; }
 
-        /* Summary bar */
-        .summary {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-bottom: 1.5rem;
+        /* Sticky controls */
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #0f172a;
         }
 
+        /* Level badges strip */
+        .level-strip {
+            background: #131e2e;
+            border-bottom: 1px solid #1e2d40;
+            padding: 0.5rem 2rem;
+        }
+
+        .level-strip-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .level-strip-inner::-webkit-scrollbar { display: none; }
+
+        /* Filter strip */
+        .filter-strip {
+            background: #0f172a;
+            border-bottom: 1px solid #334155;
+            padding: 0.45rem 2rem;
+        }
+
+        .filter-strip-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Summary badges */
+        .summary { display: contents; }  /* children flow directly into level-strip-inner */
+
         .badge {
-            padding: 0.25rem 0.75rem;
+            padding: 0.18rem 0.55rem;
             border-radius: 9999px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             cursor: pointer;
-            text-decoration: none;
             font-family: inherit;
             -webkit-appearance: none;
             appearance: none;
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
+            gap: 0.3rem;
             border: 1px solid transparent;
+            white-space: nowrap;
             transition: opacity 0.15s;
         }
 
@@ -76,34 +114,77 @@
 
         /* Filters */
         .filters {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-bottom: 1.5rem;
+            display: contents;
         }
 
-        .filters select,
         .filters input[type=text] {
-            background: #0f172a;
+            background: #1a2540;
             border: 1px solid #334155;
             color: #cbd5e1;
             border-radius: 0.375rem;
-            padding: 0.375rem 0.75rem;
-            font-size: 0.875rem;
+            padding: 0.3rem 0.75rem;
+            font-size: 0.8125rem;
             font-family: inherit;
+            outline: none;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .filters input[type=text]:focus { border-color: #6366f1; }
+
+        /* File dropdown */
+        .file-dropdown { position: relative; }
+
+        .file-dropdown-btn {
+            background: #1a2540;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            border-radius: 0.375rem;
+            padding: 0.3rem 0.65rem;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            white-space: nowrap;
             outline: none;
         }
 
-        .filters select:focus,
-        .filters input[type=text]:focus { border-color: #6366f1; }
+        .file-dropdown-btn:focus,
+        .file-dropdown-btn:hover { border-color: #6366f1; }
 
-        .filters select[multiple] { padding: 0.25rem 0.5rem; height: auto; }
+        .file-dropdown-btn.active { border-color: #6366f1; color: #a5b4fc; }
 
-        .filters input[type=text] { flex: 1; min-width: 220px; }
+        .file-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 0.375rem 0;
+            min-width: 160px;
+            z-index: 200;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .file-dropdown-menu.open { display: block; }
+
+        .file-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.875rem;
+            font-size: 0.8125rem;
+            color: #cbd5e1;
+            cursor: pointer;
+        }
+
+        .file-option:hover { background: #263348; }
+
+        .file-option input[type=checkbox] { accent-color: #6366f1; cursor: pointer; }
 
         .btn {
             padding: 0.375rem 1rem;
@@ -261,49 +342,71 @@
 </head>
 <body>
 
-<header>
-    <h1>&#128269; Log Lens</h1>
-    <span>{{ $totalLogs }} entr{{ $totalLogs === 1 ? 'y' : 'ies' }} found</span>
-</header>
+<div class="sticky-top">
+    <header>
+        <h1>&#128269; Log Lens</h1>
+        <span>{{ $totalLogs }} entr{{ $totalLogs === 1 ? 'y' : 'ies' }} found</span>
+    </header>
 
-<div class="container">
-
-    {{-- Summary badges --}}
-    <div class="summary">
-        @php $levels = ['all', 'debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency']; @endphp
-        @foreach ($levels as $lvl)
-            @php
-                $count = $lvl === 'all' ? array_sum($summary) : ($summary[$lvl] ?? 0);
-                $isActive = $lvl === 'all' ? empty($selectedLevels) : in_array($lvl, $selectedLevels);
-            @endphp
-            @if ($lvl === 'all' || $count > 0)
-                <button type="button"
-                        class="badge badge-{{ $lvl }}{{ $isActive ? ' active' : '' }}"
-                        data-level="{{ $lvl }}"
-                        onclick="toggleLevel('{{ $lvl }}')">
-                    {{ ucfirst($lvl) }} <span>{{ $count }}</span>
-                </button>
-            @endif
-        @endforeach
+    {{-- Level badges strip --}}
+    <div class="level-strip">
+        <div class="level-strip-inner">
+            @php $levels = ['all', 'debug', 'info', 'notice', 'warning', 'error', 'critical', 'alert', 'emergency']; @endphp
+            @foreach ($levels as $lvl)
+                @php
+                    $count = $lvl === 'all' ? array_sum($summary) : ($summary[$lvl] ?? 0);
+                    $isActive = $lvl === 'all' ? empty($selectedLevels) : in_array($lvl, $selectedLevels);
+                @endphp
+                @if ($lvl === 'all' || $count > 0)
+                    <button type="button"
+                            class="badge badge-{{ $lvl }}{{ $isActive ? ' active' : '' }}"
+                            data-level="{{ $lvl }}"
+                            onclick="toggleLevel('{{ $lvl }}')">
+                        {{ ucfirst($lvl) }} <span>{{ $count }}</span>
+                    </button>
+                @endif
+            @endforeach
+        </div>
     </div>
 
-    {{-- Filters --}}
-    <form id="filter-form" method="GET" action="{{ route('log-lens.index') }}" class="filters">
-        <input type="hidden" name="page" value="1">
+    {{-- Filter strip --}}
+    <div class="filter-strip">
+        <div class="filter-strip-inner">
+            <form id="filter-form" method="GET" action="{{ route('log-lens.index') }}" class="filters" style="display:contents">
+                <input type="hidden" name="page" value="1">
 
-        <select name="log_file[]" multiple
-                title="Hold Cmd/Ctrl to select multiple files"
-                size="{{ max(2, min(count($logFiles), 6)) }}">
-            @foreach ($logFiles as $lf)
-                <option value="{{ $lf }}" @selected(in_array($lf, $selectedLogFiles))>{{ $lf }}</option>
-            @endforeach
-        </select>
+                <div class="file-dropdown" id="file-dropdown">
+                    <button type="button"
+                            class="file-dropdown-btn{{ ! empty($selectedLogFiles) ? ' active' : '' }}"
+                            onclick="toggleFileDropdown(event)">
+                        @php
+                            $fileLabel = empty($selectedLogFiles)
+                                ? 'All Files'
+                                : count($selectedLogFiles).' file'.(count($selectedLogFiles) > 1 ? 's' : '');
+                        @endphp
+                        <span id="file-label">{{ $fileLabel }}</span>
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 1l4 4 4-4"/></svg>
+                    </button>
+                    <div class="file-dropdown-menu" id="file-dropdown-menu">
+                        @foreach ($logFiles as $lf)
+                            <label class="file-option">
+                                <input type="checkbox" name="log_file[]" value="{{ $lf }}" @checked(in_array($lf, $selectedLogFiles))>
+                                {{ $lf }}
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
 
-        <input type="text" name="search" placeholder="Search messages…" value="{{ $search }}">
+                <input type="text" name="search" placeholder="Search messages…" value="{{ $search }}">
 
-        <button type="submit" class="btn btn-primary">Filter</button>
-        <a href="{{ route('log-lens.index') }}" class="btn btn-secondary">Reset</a>
-    </form>
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="{{ route('log-lens.index') }}" class="btn btn-secondary">Reset</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="container">
 
     {{-- Log table --}}
     <div class="table-wrapper">
@@ -384,6 +487,19 @@
 
 <script>
     let selectedLevels = @json($selectedLevels);
+
+    function toggleFileDropdown(e) {
+        e.stopPropagation();
+        document.getElementById('file-dropdown-menu').classList.toggle('open');
+    }
+
+    document.addEventListener('click', function (e) {
+        const dd = document.getElementById('file-dropdown');
+        const menu = document.getElementById('file-dropdown-menu');
+        if (menu && dd && !dd.contains(e.target)) {
+            menu.classList.remove('open');
+        }
+    });
 
     document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('filter-form');
