@@ -5,8 +5,8 @@ namespace AniketMagadum\LogLens\Http\Controllers;
 use AniketMagadum\LogLens\LogLens;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Contracts\View\View;
 use Illuminate\Routing\Controller;
-use Illuminate\View\View;
 
 class LogLensController extends Controller
 {
