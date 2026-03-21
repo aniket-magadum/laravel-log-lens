@@ -285,3 +285,41 @@ it('combines context filter with level and search filters', function () {
         ->assertDontSee('Payment ok')
         ->assertDontSee('Login failed');
 });
+
+// ─── Stack trace highlighting ─────────────────────────────────────────────────
+
+it('renders vendor frame lines as trace-vendor and app frame lines as trace-app', function () {
+    $content =
+        '[2026-03-21 10:00:00] production.ERROR: Something broke {"exception":"[object] (RuntimeException: msg at /app/Service.php:1)'."\n".
+        '[stacktrace]'."\n".
+        '#0 /vendor/laravel/framework/src/Pipeline.php(10): Closure->__invoke()'."\n".
+        '#1 /app/Service.php(1): Pipeline->handle()'."\n".
+        '"}';
+    file_put_contents($this->storagePath.'/laravel.log', $content."\n");
+    ($this->bindLogLens)();
+
+    $html = $this->get('/log-lens')->assertOk()->getContent();
+
+    // Vendor frame (#0) must be dimmed
+    expect($html)->toContain('class="trace-vendor"')
+        // App frame (#1) must be highlighted
+        ->and($html)->toContain('class="trace-app"')
+        // Exception header must be trace-app (visible), not dimmed
+        ->and($html)->toContain('<span class="trace-app">[object]');
+});
+
+it('parses and highlights an exception even when other context keys precede it', function () {
+    $content =
+        '[2026-03-21 10:00:00] production.ERROR: Query failed {"user_id":99,"exception":"[object] (QueryException: msg at /app/Repo.php:1)'."\n".
+        '[stacktrace]'."\n".
+        '#0 /vendor/laravel/framework/Connection.php(10): PDO->connect()'."\n".
+        '#1 /app/Repo.php(1): Connection->connect()'."\n".
+        '"}';
+    file_put_contents($this->storagePath.'/laravel.log', $content."\n");
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens')
+        ->assertOk()
+        ->assertSee('trace-vendor', false)
+        ->assertSee('trace-app', false);
+});

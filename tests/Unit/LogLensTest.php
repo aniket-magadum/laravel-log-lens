@@ -143,6 +143,23 @@ it('preserves the full exception string including a previous exception chain', f
         ->and($entry['context']['exception'])->toContain('ParentException');
 });
 
+it('parses the exception when other context keys appear before it in the same JSON object', function () {
+    $file = $this->storagePath.'/laravel.log';
+    $content =
+        '[2026-03-21 10:00:00] production.ERROR: DB error {"user_id":42,"exception":"[object] (QueryException: SQLSTATE at /app/Repo.php:1)'."\n".
+        '[stacktrace]'."\n".
+        '#0 /vendor/laravel/framework/Connection.php(10): PDO->__construct()'."\n".
+        '#1 /app/Repo.php(1): Connection->connect()'."\n".
+        '"}';
+    file_put_contents($file, $content."\n");
+
+    $entry = $this->logLens->parseLogFile($file)->first();
+
+    expect($entry['context'])->toHaveKey('exception')
+        ->and($entry['context']['exception'])->toContain('[stacktrace]')
+        ->and($entry['context']['exception'])->toContain('#0 /vendor/');
+});
+
 it('falls back to first-line context parsing when no exception key is present in a multi-line raw entry', function () {
     $file = $this->storagePath.'/laravel.log';
     // Simulate a rare case: multi-line message without an "exception" key

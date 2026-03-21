@@ -1088,7 +1088,9 @@
                                         <div class="context-label">Exception</div>
                                         @php
                                             $excFormatted = implode("\n", array_map(function ($excLine) {
-                                                $cls = str_contains($excLine, '/vendor/') ? 'trace-vendor' : 'trace-app';
+                                                // Only dim frame lines (#N ...) that are in vendor; headers/other lines stay visible
+                                                $isVendorFrame = str_starts_with($excLine, '#') && str_contains($excLine, '/vendor/');
+                                                $cls = $isVendorFrame ? 'trace-vendor' : 'trace-app';
                                                 return '<span class="' . $cls . '">' . e($excLine) . '</span>';
                                             }, explode("\n", $log['context']['exception'])));
                                         @endphp

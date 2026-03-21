@@ -69,7 +69,8 @@ class LogLens
 
                 // Extract the exception string: {"exception":"...multiline..."}
                 // Actual newlines appear literally inside the JSON string value (Monolog quirk)
-                if (preg_match('/\{"exception":"((?:[^"\\\\]|\\\\.)*)"\}/s', $raw, $excMatch)) {
+                // [,{ allows exception to be any key in the JSON object, not just the first
+                if (preg_match('/[{,]"exception":"((?:[^"\\\\]|\\\\.)*)"/s', $raw, $excMatch)) {
                     $context['exception'] = $excMatch[1];
 
                     // Clean message is the first-line text before the opening {
