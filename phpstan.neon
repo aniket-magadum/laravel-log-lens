@@ -1,0 +1,10 @@
+parameters:
+        - src/
+        - tests/
+
+    level: 5
+
+    ignoreErrors:
+        # Laravel helper functions (config, view, response, storage_path, etc.) are
+        # provided by the framework at runtime and not declared in illuminate/* stubs.
+        - identifier: function.notFound

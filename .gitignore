@@ -1,0 +1,29 @@
+/vendor/
+/node_modules/
+
+# Composer lock file — packages should not commit this
+composer.lock
+
+# PHPUnit / Pest cache
+.phpunit.cache/
+.phpunit.result.cache
+
+# PHPStan cache
+.phpstan.cache/
+/phpstan-tmp/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build outputs
+/build/
+/dist/

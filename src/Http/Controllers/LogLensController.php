@@ -79,7 +79,7 @@ class LogLensController extends Controller
 
         $currentPage = $highlightPos !== null
             ? (int) floor($highlightPos / $perPage) + 1
-            : (int) $request->query('page', 1);
+            : (int) $request->query('page', '1');
         $totalLogs = $logs->count();
         $pagedLogs = $logs->forPage($currentPage, $perPage);
         $lastPage = (int) ceil($totalLogs / $perPage) ?: 1;
