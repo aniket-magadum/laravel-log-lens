@@ -97,11 +97,23 @@
             gap: 0.3rem;
             border: 1px solid transparent;
             white-space: nowrap;
-            transition: opacity 0.15s;
+            transition: opacity 0.15s, filter 0.15s, transform 0.1s, box-shadow 0.15s;
+            position: relative;
         }
 
-        .badge:hover { opacity: 0.8; }
-        .badge.active { border-color: currentColor; }
+        .badge:hover { opacity: 0.85; }
+
+        .badge.active {
+            border-color: currentColor;
+            filter: brightness(1.2);
+            box-shadow: 0 0 0 1px currentColor;
+        }
+
+        .badge.active::after {
+            content: ' ✓';
+            font-size: 0.65rem;
+            opacity: 0.75;
+        }
 
         .badge-all    { background: #1e293b; color: #94a3b8; }
         .badge-debug  { background: #172554; color: #93c5fd; }
@@ -406,8 +418,8 @@
 
         th.col-datetime  { width: 13%; }
         th.col-level     { width: 9%; }
-        th.col-message   { /* takes the remaining ~67% */ }
-        th.col-file      { width: 11%; }
+        th.col-message   { /* takes the remaining */ }
+        th.col-file      { width: 16%; }
 
         td {
             padding: 0.625rem 1rem;
@@ -441,7 +453,7 @@
         .level-emergency { background: #4c0519; color: #f9a8d4; }
 
         .datetime { color: #64748b; white-space: nowrap; }
-        .file-col { color: #64748b; font-size: 0.75rem; white-space: nowrap; }
+        .file-col { color: #64748b; font-size: 0.75rem; white-space: normal; word-break: break-all; }
 
         /* Collapsible rows */
         .log-summary {
