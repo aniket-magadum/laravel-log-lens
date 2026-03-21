@@ -323,3 +323,70 @@ it('parses and highlights an exception even when other context keys precede it',
         ->assertSee('trace-vendor', false)
         ->assertSee('trace-app', false);
 });
+
+// ─── Default log file auto-selection ─────────────────────────────────────────
+
+it('auto-selects today\'s dated log file on first visit', function () {
+    $today = now()->format('Y-m-d');
+    file_put_contents($this->storagePath."/laravel-{$today}.log", "[{$today} 10:00:00] local.INFO: Today entry\n");
+    file_put_contents($this->storagePath.'/laravel.log', "[{$today} 09:00:00] local.INFO: Generic entry\n");
+    ($this->bindLogLens)();
+
+    // First visit — no _files_set sentinel
+    $this->get('/log-lens')
+        ->assertOk()
+        ->assertSee('Today entry')
+        ->assertDontSee('Generic entry');
+});
+
+it('auto-selects yesterday\'s dated log file when no today file exists', function () {
+    $yesterday = now()->subDay()->format('Y-m-d');
+    file_put_contents($this->storagePath."/laravel-{$yesterday}.log", "[{$yesterday} 10:00:00] local.INFO: Yesterday entry\n");
+    file_put_contents($this->storagePath.'/laravel.log', "[{$yesterday} 09:00:00] local.INFO: Generic entry\n");
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens')
+        ->assertOk()
+        ->assertSee('Yesterday entry')
+        ->assertDontSee('Generic entry');
+});
+
+it('falls back to laravel.log when no dated file exists', function () {
+    file_put_contents($this->storagePath.'/laravel.log', "[2020-01-01 10:00:00] local.INFO: Fallback entry\n");
+    file_put_contents($this->storagePath.'/other.log',   "[2020-01-01 10:00:00] local.INFO: Other entry\n");
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens')
+        ->assertOk()
+        ->assertSee('Fallback entry')
+        ->assertDontSee('Other entry');
+});
+
+it('falls back to the most recently modified file when no dated or laravel.log file exists', function () {
+    $older = $this->storagePath.'/alpha.log';
+    $newer = $this->storagePath.'/beta.log';
+    file_put_contents($older, "[2020-01-01 10:00:00] local.INFO: Older entry\n");
+    // Touch beta.log one second later to ensure it has a newer mtime
+    file_put_contents($newer, "[2020-01-02 10:00:00] local.INFO: Newer entry\n");
+    touch($older, time() - 10);
+    touch($newer, time());
+    ($this->bindLogLens)();
+
+    $this->get('/log-lens')
+        ->assertOk()
+        ->assertSee('Newer entry')
+        ->assertDontSee('Older entry');
+});
+
+it('shows all files when _files_set is present and no log_file[] is checked', function () {
+    $today = now()->format('Y-m-d');
+    file_put_contents($this->storagePath."/laravel-{$today}.log", "[{$today} 10:00:00] local.INFO: Today entry\n");
+    file_put_contents($this->storagePath.'/laravel.log', "[{$today} 09:00:00] local.INFO: Generic entry\n");
+    ($this->bindLogLens)();
+
+    // Simulate form submit with all files unchecked (user intentionally wants all files)
+    $this->get('/log-lens?_files_set=1')
+        ->assertOk()
+        ->assertSee('Today entry')
+        ->assertSee('Generic entry');
+});

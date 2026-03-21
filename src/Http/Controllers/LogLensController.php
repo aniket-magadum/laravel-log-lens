@@ -17,6 +17,14 @@ class LogLensController extends Controller
         $selectedLevels = array_values(array_filter((array) ($request->query('level') ?? [])));
         $selectedLogFiles = array_values(array_filter((array) ($request->query('log_file') ?? [])));
 
+        // On the first visit (no explicit file filter submitted), pre-select the most relevant file
+        if (! $request->boolean('_files_set') && empty($selectedLogFiles)) {
+            $default = $this->guessDefaultLogFile();
+            if ($default !== null) {
+                $selectedLogFiles = [$default];
+            }
+        }
+
         $rawSearch = $request->query('search');
         $selectedSearches = array_values(array_filter(
             is_array($rawSearch) ? $rawSearch : (($rawSearch !== null && $rawSearch !== '') ? [$rawSearch] : [])
@@ -160,6 +168,40 @@ class LogLensController extends Controller
         $this->saveResolvedIds($resolvedIds);
 
         return response()->json(['resolved' => $newCount]);
+    }
+
+    /**
+     * Return the most relevant log file name to show by default.
+     * Priority: today's dated file → yesterday's → "laravel.log" → null (all files).
+     */
+    private function guessDefaultLogFile(): ?string
+    {
+        $files = $this->logLens->getLogFileNames();
+
+        if (empty($files)) {
+            return null;
+        }
+
+        $today     = now()->format('Y-m-d');
+        $yesterday = now()->subDay()->format('Y-m-d');
+
+        foreach ([$today, $yesterday] as $date) {
+            foreach ($files as $file) {
+                if (str_contains($file, $date)) {
+                    return $file;
+                }
+            }
+        }
+
+        if (in_array('laravel.log', $files, true)) {
+            return 'laravel.log';
+        }
+
+        // Final resort: the file with the most recent modification time
+        $fullPaths = $this->logLens->getLogFiles();
+        usort($fullPaths, fn (string $a, string $b) => filemtime($b) <=> filemtime($a));
+
+        return basename($fullPaths[0]);
     }
 
     private function resolvedStoragePath(): string

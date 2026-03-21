@@ -906,6 +906,8 @@
         <div class="filter-strip-inner">
             <form id="filter-form" method="GET" action="{{ route('log-lens.index') }}" class="filters" style="display:contents">
                 <input type="hidden" name="page" value="1">
+                {{-- Sentinel: tells the controller the user has explicitly submitted the filter form --}}
+                <input type="hidden" name="_files_set" value="1">
 
                 <div class="file-dropdown" id="file-dropdown">
                     <button type="button"
