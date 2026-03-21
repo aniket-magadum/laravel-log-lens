@@ -253,7 +253,12 @@
             white-space: nowrap;
         }
 
-        .ctx-select {
+        .ctx-combobox {
+            position: relative;
+            max-width: 160px;
+        }
+
+        .ctx-combo-input {
             background: #1a2540;
             border: 1px solid #334155;
             color: #cbd5e1;
@@ -262,12 +267,47 @@
             font-size: 0.8125rem;
             font-family: inherit;
             outline: none;
-            cursor: pointer;
-            max-width: 170px;
+            width: 100%;
         }
 
-        .ctx-select:focus { border-color: #6366f1; }
-        .ctx-select option { background: #1e293b; }
+        .ctx-combo-input:focus { border-color: #6366f1; }
+
+        .ctx-combo-list {
+            display: none;
+            position: absolute;
+            top: calc(100% + 3px);
+            left: 0;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 300;
+            min-width: 100%;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            scrollbar-width: thin;
+            scrollbar-color: #334155 transparent;
+        }
+
+        .ctx-combo-list.open { display: block; }
+
+        .ctx-combo-option {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8125rem;
+            color: #cbd5e1;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .ctx-combo-option:hover,
+        .ctx-combo-option.highlighted { background: #263348; }
+
+        .ctx-combo-empty {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8125rem;
+            color: #475569;
+            font-style: italic;
+        }
 
         /* File dropdown */
         .file-dropdown { position: relative; }
@@ -570,7 +610,7 @@
             .filter-strip { padding: 0.5rem 1rem; }
 
             .filter-strip-inner { flex-wrap: wrap; gap: 0.4rem; }
-            .ctx-select { flex: 1; min-width: 100px; max-width: none; }
+            .ctx-combobox { flex: 1; min-width: 100px; max-width: none; }
             .file-dropdown { flex: 0 0 auto; }
             .file-dropdown-btn { white-space: nowrap; }
             .filters input[type=text] { flex: 1 1 0; min-width: 120px; }
@@ -736,15 +776,22 @@
 
                         @if (!empty($contextKeyValues))
                             <span class="ctx-filter-label">ctx:</span>
-                            <select id="ctxKeySelect" class="ctx-select" onchange="populateCtxValues(this.value)">
-                                <option value="">key&hellip;</option>
-                                @foreach (array_keys($contextKeyValues) as $ctxKey)
-                                    <option value="{{ $ctxKey }}">{{ $ctxKey }}</option>
-                                @endforeach
-                            </select>
-                            <select id="ctxValSelect" class="ctx-select">
-                                <option value="">value&hellip;</option>
-                            </select>
+                            <div class="ctx-combobox" id="ctxKeyCombo">
+                                <input type="text" id="ctxKeyInput" class="ctx-combo-input"
+                                       placeholder="key&hellip;" autocomplete="off"
+                                       oninput="filterCtxCombo('key', this.value)"
+                                       onfocus="openCtxCombo('key')"
+                                       onkeydown="ctxComboKeydown(event, 'key')">
+                                <div class="ctx-combo-list" id="ctxKeyList"></div>
+                            </div>
+                            <div class="ctx-combobox" id="ctxValCombo">
+                                <input type="text" id="ctxValInput" class="ctx-combo-input"
+                                       placeholder="value&hellip;" autocomplete="off"
+                                       oninput="filterCtxCombo('val', this.value)"
+                                       onfocus="openCtxCombo('val')"
+                                       onkeydown="ctxComboKeydown(event, 'val')">
+                                <div class="ctx-combo-list" id="ctxValList"></div>
+                            </div>
                             <button type="button" class="btn btn-secondary" style="padding: 0.28rem 0.65rem; font-size: 0.8125rem;" onclick="addCtxFilter()">Add</button>
                         @endif
                     </div>
@@ -883,6 +930,13 @@
         if (menu && dd && !dd.contains(e.target)) {
             menu.classList.remove('open');
         }
+        ['ctxKeyCombo', 'ctxValCombo'].forEach(function (comboId) {
+            const combo = document.getElementById(comboId);
+            const list  = document.getElementById(comboId === 'ctxKeyCombo' ? 'ctxKeyList' : 'ctxValList');
+            if (combo && list && !combo.contains(e.target)) {
+                list.classList.remove('open');
+            }
+        });
     });
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -989,24 +1043,107 @@
     }
 
     const ctxKeyValues = @json($contextKeyValues);
+    let ctxSelectedKey  = null;
+    let ctxSelectedVal  = null;
+    let ctxValOptions   = [];
+    let ctxKeyHighlight = -1;
+    let ctxValHighlight = -1;
 
-    function populateCtxValues(key) {
-        const valSelect = document.getElementById('ctxValSelect');
-        while (valSelect.options.length > 1) { valSelect.remove(1); }
-        if (!key || !ctxKeyValues[key]) { return; }
-        ctxKeyValues[key].forEach(function (v) {
-            const opt = document.createElement('option');
-            opt.value = v;
-            opt.textContent = v;
-            valSelect.appendChild(opt);
+    function openCtxCombo(type) {
+        const listId = type === 'key' ? 'ctxKeyList' : 'ctxValList';
+        const inputId = type === 'key' ? 'ctxKeyInput' : 'ctxValInput';
+        const input = document.getElementById(inputId);
+        if (type === 'key') { ctxKeyHighlight = -1; } else { ctxValHighlight = -1; }
+        populateCtxComboList(type, input ? input.value : '');
+        document.getElementById(listId).classList.add('open');
+    }
+
+    function populateCtxComboList(type, filter) {
+        const listId = type === 'key' ? 'ctxKeyList' : 'ctxValList';
+        const list = document.getElementById(listId);
+        if (!list) { return; }
+        list.innerHTML = '';
+        const options = type === 'key' ? Object.keys(ctxKeyValues) : ctxValOptions;
+        const q = (filter || '').toLowerCase();
+        const filtered = q ? options.filter(function (o) { return String(o).toLowerCase().includes(q); }) : options;
+        if (filtered.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'ctx-combo-empty';
+            empty.textContent = 'No matches';
+            list.appendChild(empty);
+            return;
+        }
+        filtered.forEach(function (val) {
+            const opt = document.createElement('div');
+            opt.className = 'ctx-combo-option';
+            opt.textContent = String(val);
+            opt.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                selectCtxOption(type, String(val));
+            });
+            list.appendChild(opt);
         });
     }
 
+    function filterCtxCombo(type, query) {
+        if (type === 'key') { ctxKeyHighlight = -1; } else { ctxValHighlight = -1; }
+        populateCtxComboList(type, query);
+        document.getElementById(type === 'key' ? 'ctxKeyList' : 'ctxValList').classList.add('open');
+    }
+
+    function selectCtxOption(type, value) {
+        if (type === 'key') {
+            ctxSelectedKey = value;
+            document.getElementById('ctxKeyInput').value = value;
+            document.getElementById('ctxKeyList').classList.remove('open');
+            ctxSelectedVal = null;
+            const valInput = document.getElementById('ctxValInput');
+            if (valInput) { valInput.value = ''; valInput.focus(); }
+            ctxValOptions = (ctxKeyValues[value] || []).map(String);
+            populateCtxComboList('val', '');
+            document.getElementById('ctxValList').classList.add('open');
+        } else {
+            ctxSelectedVal = value;
+            document.getElementById('ctxValInput').value = value;
+            document.getElementById('ctxValList').classList.remove('open');
+        }
+    }
+
+    function ctxComboKeydown(event, type) {
+        const listId = type === 'key' ? 'ctxKeyList' : 'ctxValList';
+        const list = document.getElementById(listId);
+        const options = list ? list.querySelectorAll('.ctx-combo-option') : [];
+        let highlight = type === 'key' ? ctxKeyHighlight : ctxValHighlight;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            highlight = Math.min(highlight + 1, options.length - 1);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            highlight = Math.max(highlight - 1, -1);
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            if (highlight >= 0 && options[highlight]) {
+                selectCtxOption(type, options[highlight].textContent);
+            } else if (type === 'val') {
+                addCtxFilter();
+            }
+            return;
+        } else if (event.key === 'Escape') {
+            if (list) { list.classList.remove('open'); }
+            return;
+        } else {
+            return;
+        }
+        if (type === 'key') { ctxKeyHighlight = highlight; } else { ctxValHighlight = highlight; }
+        options.forEach(function (o, i) { o.classList.toggle('highlighted', i === highlight); });
+        if (highlight >= 0 && options[highlight]) { options[highlight].scrollIntoView({ block: 'nearest' }); }
+    }
+
     function addCtxFilter() {
-        const key = document.getElementById('ctxKeySelect').value;
-        const val = document.getElementById('ctxValSelect').value;
-        if (!key || !val) { return; }
-        filterByCtx(key, val);
+        const key = ctxSelectedKey || (document.getElementById('ctxKeyInput') || {}).value || '';
+        const val = ctxSelectedVal || (document.getElementById('ctxValInput') || {}).value || '';
+        if (!key.trim() || !val.trim()) { return; }
+        filterByCtx(key.trim(), val.trim());
     }
 
     function filterByCtx(key, value) {

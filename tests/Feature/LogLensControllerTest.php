@@ -269,8 +269,8 @@ it('renders the context filter key select when context key values are available'
 
     $this->get('/log-lens')
         ->assertOk()
-        ->assertSee('ctxKeySelect', false)
-        ->assertSee('role');
+        ->assertSee('ctxKeyInput', false)
+        ->assertSee('ctxKeyCombo', false);
 });
 
 it('combines context filter with level and search filters', function () {
