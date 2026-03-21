@@ -47,13 +47,66 @@ class LogLens
         $pattern = '/\[(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{2}:\d{2}|Z)?)\] (\w+)\.(\w+): (.*?)(?=\[\d{4}-\d{2}-\d{2}|\z)/s';
         preg_match_all($pattern, $contents, $matches, PREG_SET_ORDER);
 
-        return collect($matches)->map(fn (array $match) => [
-            'datetime' => $match[1],
-            'environment' => $match[2],
-            'level' => strtolower($match[3]),
-            'message' => trim($match[4]),
-            'file' => basename($filePath),
-        ]);
+        return collect($matches)->map(function (array $match) use ($filePath): array {
+            $raw = trim($match[4]);
+            $context = [];
+            $cleanMessage = $raw;
+
+            if (! str_contains($raw, "\n")) {
+                // ── Single-line entry: "message {context_json}" ──
+                if (preg_match('/^(.*?)\s+(\{.+\}|\[\])\s*$/', $raw, $ctx)) {
+                    $cleanMessage = trim($ctx[1]);
+                    if ($ctx[2] !== '[]') {
+                        $context = json_decode($ctx[2], true) ?? [];
+                    }
+                }
+            } else {
+                // ── Multi-line entry (exception stacktrace spans lines) ──
+                // Format: MESSAGE {"exception":"...\nmultiline\n"} {"extra":"context"}
+                $lines = explode("\n", $raw);
+                $firstLine = $lines[0];
+                $lastLine = rtrim((string) end($lines));
+
+                // Extract the exception string: {"exception":"...multiline..."}
+                // Actual newlines appear literally inside the JSON string value (Monolog quirk)
+                if (preg_match('/\{"exception":"((?:[^"\\\\]|\\\\.)*)"\}/s', $raw, $excMatch)) {
+                    $context['exception'] = $excMatch[1];
+
+                    // Clean message is the first-line text before the opening {
+                    if (preg_match('/^(.*?)\s+\{/', $firstLine, $msgMatch)) {
+                        $cleanMessage = trim($msgMatch[1]);
+                    } else {
+                        $cleanMessage = $firstLine;
+                    }
+
+                    // Additional context may appear after the closing "} on the last line
+                    // e.g.  "} {"user_id":123}
+                    if (preg_match('/^"\}\s*(\{.+\})\s*$/', $lastLine, $lcm)) {
+                        $extra = json_decode($lcm[1], true);
+                        if (is_array($extra)) {
+                            $context = array_merge($context, $extra);
+                        }
+                    }
+                } else {
+                    // No exception pattern — fall back to first-line single-line parsing
+                    if (preg_match('/^(.*?)\s+(\{.+\}|\[\])\s*$/', $firstLine, $ctx)) {
+                        $cleanMessage = trim($ctx[1]);
+                        if ($ctx[2] !== '[]') {
+                            $context = json_decode($ctx[2], true) ?? [];
+                        }
+                    }
+                }
+            }
+
+            return [
+                'datetime' => $match[1],
+                'environment' => $match[2],
+                'level' => strtolower($match[3]),
+                'message' => $cleanMessage,
+                'context' => $context,
+                'file' => basename($filePath),
+            ];
+        });
     }
 
     /** @return Collection<int, array<string, mixed>> */
@@ -70,9 +123,20 @@ class LogLens
         }
 
         if ($search !== null && $search !== '') {
-            $logs = $logs->filter(
-                fn (array $log) => str_contains(strtolower($log['message']), strtolower($search))
-            );
+            $needle = strtolower($search);
+            $logs = $logs->filter(function (array $log) use ($needle): bool {
+                if (str_contains(strtolower($log['message']), $needle)) {
+                    return true;
+                }
+
+                foreach ($log['context'] as $value) {
+                    if (is_string($value) && str_contains(strtolower($value), $needle)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
         }
 
         return $logs->sortByDesc('datetime')->values();

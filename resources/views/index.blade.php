@@ -286,26 +286,106 @@
         .log-detail { display: none; background: #0a1020 !important; }
         .log-detail.open { display: table-row; }
         .log-detail td {
-            padding: 0.75rem 1.25rem 0.75rem 3rem;
+            padding: 0.75rem 1.25rem 0.75rem 1.25rem;
             border-bottom: 1px solid #334155;
         }
-        .log-detail pre {
-            white-space: pre-wrap;
-            word-break: break-word;
-            color: #94a3b8;
-            font-family: inherit;
-            font-size: 0.8rem;
-            line-height: 1.65;
-            margin: 0;
-        }
+
+        /* ── Detail: meta strip ── */
         .log-detail .detail-meta {
             display: flex;
             gap: 1.5rem;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
             font-size: 0.75rem;
             color: #64748b;
         }
         .log-detail .detail-meta span { color: #94a3b8; }
+
+        /* ── Detail: message body ── */
+        .detail-message {
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #cbd5e1;
+            font-family: inherit;
+            font-size: 0.8rem;
+            line-height: 1.65;
+            margin: 0 0 0.75rem;
+            padding: 0.625rem 0.875rem;
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 0.375rem;
+        }
+
+        /* ── Detail: context panel ── */
+        .context-panel {
+            margin-bottom: 0.625rem;
+        }
+
+        .context-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #475569;
+            font-weight: 600;
+            margin-bottom: 0.375rem;
+        }
+
+        .context-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+        }
+
+        .context-pill {
+            display: inline-flex;
+            align-items: stretch;
+            border: 1px solid #1e3050;
+            border-radius: 0.3rem;
+            font-size: 0.73rem;
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.15s;
+            max-width: 360px;
+        }
+
+        .context-pill:hover { border-color: #4f6080; }
+        .context-pill:hover .context-pill-key { background: #1e2d40; }
+
+        .context-pill-key {
+            background: #0f172a;
+            color: #64748b;
+            padding: 0.2rem 0.45rem;
+            border-right: 1px solid #1e3050;
+            white-space: nowrap;
+            transition: background 0.15s;
+        }
+
+        .context-pill-val {
+            color: #94a3b8;
+            padding: 0.2rem 0.45rem;
+            max-width: 240px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ── Detail: exception block ── */
+        .exception-block {
+            margin-top: 0.5rem;
+        }
+
+        .exception-block pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #fca5a5;
+            font-family: inherit;
+            font-size: 0.75rem;
+            line-height: 1.65;
+            margin: 0;
+            padding: 0.625rem 0.875rem;
+            background: #1a0808;
+            border: 1px solid #450a0a;
+            border-radius: 0.375rem;
+        }
 
         /* Empty state */
         .empty {
@@ -420,6 +500,7 @@
                 padding: 0.625rem 0.75rem;
             }
 
+            .context-pill-val { max-width: 160px; }
             .log-detail .detail-meta { flex-direction: column; gap: 0.25rem; }
 
             .pagination { flex-direction: column; align-items: flex-start; gap: 0.625rem; }
@@ -526,12 +607,48 @@
                         </tr>
                         <tr class="log-detail" id="log-detail-{{ $idx }}">
                             <td colspan="4">
+                                {{-- Meta strip --}}
                                 <div class="detail-meta">
-                                    <div>Environment: <span>{{ $log['environment'] }}</span></div>
+                                    <div>Env: <span>{{ $log['environment'] }}</span></div>
                                     <div>File: <span>{{ $log['file'] }}</span></div>
                                     <div>Time: <span>{{ $log['datetime'] }}</span></div>
                                 </div>
-                                <pre>{{ $log['message'] }}</pre>
+
+                                {{-- Message body --}}
+                                <pre class="detail-message">{{ $log['message'] }}</pre>
+
+                                @php
+                                    $ctxDisplay = collect($log['context'] ?? [])->except('exception');
+                                    $hasException = ! empty($log['context']['exception']);
+                                @endphp
+
+                                {{-- Context key-value pills --}}
+                                @if ($ctxDisplay->isNotEmpty())
+                                    <div class="context-panel">
+                                        <div class="context-label">Context</div>
+                                        <div class="context-grid">
+                                            @foreach ($ctxDisplay as $key => $val)
+                                                @php
+                                                    $display = is_array($val) ? json_encode($val, JSON_UNESCAPED_SLASHES) : (string) $val;
+                                                @endphp
+                                                <div class="context-pill"
+                                                     title="Click to search for this value"
+                                                     onclick="searchContext({{ json_encode($display) }})">
+                                                    <span class="context-pill-key">{{ $key }}</span>
+                                                    <span class="context-pill-val" title="{{ $display }}">{{ $display }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+
+                                {{-- Exception block --}}
+                                @if ($hasException)
+                                    <div class="exception-block">
+                                        <div class="context-label">Exception</div>
+                                        <pre>{{ $log['context']['exception'] }}</pre>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                     @endforeach
@@ -636,6 +753,18 @@
         if (!summary || !detail) return;
         const isOpen = summary.classList.toggle('open');
         detail.classList.toggle('open', isOpen);
+    }
+
+    function searchContext(value) {
+        const form  = document.getElementById('filter-form');
+        const input = form.querySelector('input[name="search"]');
+        if (input) {
+            input.value = value;
+            // Reset to page 1
+            const pageInput = form.querySelector('input[name="page"]');
+            if (pageInput) { pageInput.value = '1'; }
+            form.submit();
+        }
     }
 </script>
 </body>
