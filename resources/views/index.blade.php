@@ -703,7 +703,10 @@
 <div class="sticky-top">
     <header>
         <h1>&#128269; Log Lens</h1>
-        <span>{{ $totalLogs }} entr{{ $totalLogs === 1 ? 'y' : 'ies' }} found</span>
+        <div style="display:flex; align-items:center; gap:1.25rem;">
+            <span title="Server hostname">&#128421; {{ gethostname() ?: 'unknown' }}</span>
+            <span>{{ $totalLogs }} entr{{ $totalLogs === 1 ? 'y' : 'ies' }} found</span>
+        </div>
     </header>
 
     {{-- Level badges strip --}}
