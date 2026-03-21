@@ -7,4 +7,5 @@ Route::prefix(config('log-lens.route_prefix', 'log-lens'))
     ->middleware(config('log-lens.middleware', ['web']))
     ->group(function () {
         Route::get('/', LogLensController::class.'@index')->name('log-lens.index');
+        Route::post('/resolve', LogLensController::class.'@toggleResolved')->name('log-lens.resolve');
     });

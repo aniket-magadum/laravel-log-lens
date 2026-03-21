@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Log Lens</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -354,7 +355,7 @@
             border: 1px solid #334155;
             border-radius: 0.5rem;
             padding: 0.375rem 0;
-            min-width: 160px;
+            min-width: 260px;
             z-index: 200;
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
         }
@@ -578,6 +579,50 @@
         .exception-block .trace-app  { color: #fca5a5; }
         .exception-block .trace-vendor { color: #3f4f60; }
 
+        /* ── Resolve button & resolved row ── */
+        th.col-resolve   { width: 7%; text-align: center; white-space: nowrap; }
+        td.td-resolve    { text-align: center; padding: 0.35rem 0 !important; }
+
+        .resolve-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            border: 1.5px solid #334155;
+            background: transparent;
+            color: #475569;
+            cursor: pointer;
+            font-size: 0.75rem;
+            line-height: 1;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+        .resolve-btn:hover {
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+        .resolve-btn.resolved {
+            border-color: #22c55e;
+            background: #052e16;
+            color: #4ade80;
+        }
+
+        .log-summary.resolved td { opacity: 0.55; }
+        .log-summary.resolved .level-badge { filter: grayscale(0.5); }
+
+        .resolved-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            color: #4ade80;
+            background: #052e16;
+            border: 1px solid #166534;
+            border-radius: 0.25rem;
+            padding: 0.125rem 0.5rem;
+        }
+
         /* Empty state */
         .empty {
             text-align: center;
@@ -705,9 +750,14 @@
 <div class="sticky-top">
     <header>
         <h1>&#128269; Log Lens</h1>
-        <div style="display:flex; align-items:center; gap:1.25rem;">
+        <div style="display:flex; align-items:center; gap:1.5rem;">
             <span title="Server hostname">&#128421; {{ gethostname() ?: 'unknown' }}</span>
             <span>{{ $totalLogs }} entr{{ $totalLogs === 1 ? 'y' : 'ies' }} found</span>
+            <span style="display:flex; align-items:center; gap:0.5rem;">
+                <span data-stat="resolved" style="color:#4ade80;">&#10003; {{ $resolvedCount }} resolved</span>
+                <span style="color:#334155;">|</span>
+                <span data-stat="pending" style="color:#f97316;">&#9632; {{ $pendingCount }} pending</span>
+            </span>
         </div>
     </header>
 
@@ -832,12 +882,18 @@
                         <th class="col-level">Level</th>
                         <th class="col-message">Message</th>
                         <th class="col-file">File</th>
+                        <th class="col-resolve" style="font-size:0.7rem; color:#64748b;">Resolved</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach ($pagedLogs as $log)
-                        @php $idx = $loop->index; @endphp
-                        <tr class="log-summary" onclick="toggleRow({{ $idx }})">
+                        @php
+                            $idx = $loop->index;
+                            $isResolvable = ! in_array($log['level'], ['debug', 'info']);
+                            $logId = $isResolvable ? md5($log['datetime'].$log['level'].$log['message'].$log['file']) : '';
+                            $isResolved = $isResolvable && in_array($logId, $resolvedIds, true);
+                        @endphp
+                        <tr class="log-summary {{ $isResolved ? 'resolved' : '' }}" onclick="toggleRow({{ $idx }})">
                             <td class="datetime">{{ $log['datetime'] }}</td>
                             <td>
                                 <span class="level-badge level-{{ $log['level'] }}">{{ $log['level'] }}</span>
@@ -846,6 +902,13 @@
                                 <span class="message-preview">{{ $log['message'] }}</span>
                             </td>
                             <td class="file-col">{{ $log['file'] }}</td>
+                            <td class="td-resolve" onclick="event.stopPropagation()">
+                                @if ($isResolvable)
+                                    <button class="resolve-btn {{ $isResolved ? 'resolved' : '' }}"
+                                            onclick="toggleResolved('{{ $logId }}', this)"
+                                            title="{{ $isResolved ? 'Mark as unresolved' : 'Mark as resolved' }}">{{ $isResolved ? '✓' : '○' }}</button>
+                                @endif
+                            </td>
                         </tr>
                         <tr class="log-detail" id="log-detail-{{ $idx }}">
                             <td colspan="4">
@@ -854,6 +917,9 @@
                                     <div>Env: <span>{{ $log['environment'] }}</span></div>
                                     <div>File: <span>{{ $log['file'] }}</span></div>
                                     <div>Time: <span>{{ $log['datetime'] }}</span></div>
+                                    <div class="resolved-badge-wrap" style="{{ $isResolved ? '' : 'display:none' }}">
+                                        <span class="resolved-badge">&#10003; Resolved</span>
+                                    </div>
                                 </div>
 
                                 {{-- Message body --}}
@@ -1191,6 +1257,53 @@
         const pageInput = form.querySelector('input[name="page"]');
         if (pageInput) { pageInput.value = '1'; }
         form.submit();
+    }
+
+    const resolveUrl = @json(route('log-lens.resolve'));
+    let resolvedCount = {{ $resolvedCount }};
+    let pendingCount  = {{ $pendingCount }};
+
+    function updateResolvedStats() {
+        const spans = document.querySelectorAll('header span[data-stat]');
+        spans.forEach(function (s) {
+            if (s.dataset.stat === 'resolved') { s.textContent = '\u2713 ' + resolvedCount + ' resolved'; }
+            if (s.dataset.stat === 'pending')  { s.textContent = '\u25a0 ' + pendingCount + ' pending'; }
+        });
+    }
+
+    function toggleResolved(id, btn) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        fetch(resolveUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({ id: id }),
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            const isResolved = data.resolved;
+            const summaryRow = btn.closest('tr.log-summary');
+            const summaryRows = Array.from(document.querySelectorAll('tr.log-summary'));
+            const rowIdx = summaryRows.indexOf(summaryRow);
+            const detailRow = document.getElementById('log-detail-' + rowIdx);
+
+            btn.textContent = isResolved ? '\u2713' : '\u25cb';
+            btn.title = isResolved ? 'Mark as unresolved' : 'Mark as resolved';
+            btn.classList.toggle('resolved', isResolved);
+            summaryRow.classList.toggle('resolved', isResolved);
+
+            if (detailRow) {
+                const badgeWrap = detailRow.querySelector('.resolved-badge-wrap');
+                if (badgeWrap) { badgeWrap.style.display = isResolved ? '' : 'none'; }
+            }
+
+            if (isResolved) { resolvedCount++; pendingCount--; }
+            else            { resolvedCount--; pendingCount++; }
+            updateResolvedStats();
+        })
+        .catch(function () {});
     }
 </script>
 </body>
