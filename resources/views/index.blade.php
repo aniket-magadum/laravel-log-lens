@@ -79,6 +79,43 @@
             flex-wrap: wrap;
         }
 
+        /* Resolve filter toggle */
+        .resolve-toggle {
+            display: inline-flex;
+            border: 1px solid #334155;
+            border-radius: 0.375rem;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .resolve-toggle-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-family: inherit;
+            padding: 0.28rem 0.65rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.12s, color 0.12s;
+            border-right: 1px solid #334155;
+        }
+        .resolve-toggle-btn:last-child { border-right: none; }
+        .resolve-toggle-btn:hover { background: #1e293b; color: #94a3b8; }
+        .resolve-toggle-btn.active-all     { background: #334155; color: #f1f5f9; }
+        .resolve-toggle-btn.active-resolved { background: #052e16; color: #4ade80; }
+        .resolve-toggle-btn.active-pending  { background: #431407; color: #f97316; }
+        .resolve-toggle-count {
+            display: inline-block;
+            background: rgba(255,255,255,0.08);
+            border-radius: 0.75rem;
+            padding: 0 0.35rem;
+            font-size: 0.7rem;
+            min-width: 1.2rem;
+            text-align: center;
+            vertical-align: middle;
+            margin-left: 0.2rem;
+        }
+
         /* Summary badges */
         .summary { display: contents; }  /* children flow directly into level-strip-inner */
 
@@ -753,11 +790,17 @@
         <div style="display:flex; align-items:center; gap:1.5rem;">
             <span title="Server hostname">&#128421; {{ gethostname() ?: 'unknown' }}</span>
             <span>{{ $totalLogs }} entr{{ $totalLogs === 1 ? 'y' : 'ies' }} found</span>
-            <span style="display:flex; align-items:center; gap:0.5rem;">
-                <span data-stat="resolved" style="color:#4ade80;">&#10003; {{ $resolvedCount }} resolved</span>
-                <span style="color:#334155;">|</span>
-                <span data-stat="pending" style="color:#f97316;">&#9632; {{ $pendingCount }} pending</span>
-            </span>
+            <div class="resolve-toggle" role="group" aria-label="Resolve filter">
+                <button type="button"
+                        class="resolve-toggle-btn {{ $resolveFilter === 'all' ? 'active-all' : '' }}"
+                        onclick="setResolveFilter('all')">All <span class="resolve-toggle-count">{{ $resolvedCount + $pendingCount }}</span></button>
+                <button type="button"
+                        class="resolve-toggle-btn {{ $resolveFilter === 'pending' ? 'active-pending' : '' }}"
+                        onclick="setResolveFilter('pending')">&#9632; Pending <span data-stat="pending" class="resolve-toggle-count">{{ $pendingCount }}</span></button>
+                <button type="button"
+                        class="resolve-toggle-btn {{ $resolveFilter === 'resolved' ? 'active-resolved' : '' }}"
+                        onclick="setResolveFilter('resolved')">&#10003; Resolved <span data-stat="resolved" class="resolve-toggle-count">{{ $resolvedCount }}</span></button>
+            </div>
         </div>
     </header>
 
@@ -829,6 +872,8 @@
                     <button type="submit" class="btn btn-primary">Filter</button>
                     <a href="{{ route('log-lens.index') }}" class="btn btn-secondary">Reset</a>
                 </div>
+
+                <input type="hidden" name="resolve_filter" id="resolveFilterInput" value="{{ $resolveFilter }}">
 
                 {{-- Context filter row --}}
                 @if (!empty($contextKeyValues) || !empty($contextFilters))
@@ -1263,12 +1308,19 @@
     let resolvedCount = {{ $resolvedCount }};
     let pendingCount  = {{ $pendingCount }};
 
+    function setResolveFilter(value) {
+        document.getElementById('resolveFilterInput').value = value;
+        const form = document.getElementById('filter-form');
+        const pageInput = form.querySelector('input[name="page"]');
+        if (pageInput) { pageInput.value = '1'; }
+        form.submit();
+    }
+
     function updateResolvedStats() {
-        const spans = document.querySelectorAll('header span[data-stat]');
-        spans.forEach(function (s) {
-            if (s.dataset.stat === 'resolved') { s.textContent = '\u2713 ' + resolvedCount + ' resolved'; }
-            if (s.dataset.stat === 'pending')  { s.textContent = '\u25a0 ' + pendingCount + ' pending'; }
-        });
+        const resolvedSpan = document.querySelector('[data-stat="resolved"]');
+        const pendingSpan  = document.querySelector('[data-stat="pending"]');
+        if (resolvedSpan) { resolvedSpan.textContent = resolvedCount; }
+        if (pendingSpan)  { pendingSpan.textContent  = pendingCount; }
     }
 
     function toggleResolved(id, btn) {

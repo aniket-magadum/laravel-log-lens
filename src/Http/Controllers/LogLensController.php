@@ -23,6 +23,9 @@ class LogLensController extends Controller
         ));
 
         $contextFilters = array_filter((array) ($request->query('ctx') ?? []));
+        $resolveFilter = in_array($request->query('resolve_filter'), ['resolved', 'pending'])
+            ? $request->query('resolve_filter')
+            : 'all';
 
         $perPage = (int) config('log-lens.per_page', 50);
 
@@ -31,16 +34,28 @@ class LogLensController extends Controller
         $summary = $this->logLens->summary($selectedLogFiles);
         $contextKeyValues = $this->logLens->getContextKeyValues($selectedLogFiles);
 
-        $currentPage = (int) $request->query('page', 1);
-        $totalLogs = $logs->count();
-        $pagedLogs = $logs->forPage($currentPage, $perPage);
-        $lastPage = (int) ceil($totalLogs / $perPage) ?: 1;
-
         $resolvedIds = $this->getResolvedIds();
         $resolvableLogs = $logs->whereNotIn('level', ['debug', 'info']);
         $allIds = $resolvableLogs->map(fn ($log) => md5($log['datetime'].$log['level'].$log['message'].$log['file']))->all();
         $resolvedCount = count(array_intersect($resolvedIds, $allIds));
         $pendingCount = count($allIds) - $resolvedCount;
+
+        if ($resolveFilter === 'resolved') {
+            $logs = $logs->filter(fn ($log) => in_array($log['level'], ['debug', 'info'])
+                ? false
+                : in_array(md5($log['datetime'].$log['level'].$log['message'].$log['file']), $resolvedIds, true)
+            )->values();
+        } elseif ($resolveFilter === 'pending') {
+            $logs = $logs->filter(fn ($log) => in_array($log['level'], ['debug', 'info'])
+                ? true
+                : ! in_array(md5($log['datetime'].$log['level'].$log['message'].$log['file']), $resolvedIds, true)
+            )->values();
+        }
+
+        $currentPage = (int) $request->query('page', 1);
+        $totalLogs = $logs->count();
+        $pagedLogs = $logs->forPage($currentPage, $perPage);
+        $lastPage = (int) ceil($totalLogs / $perPage) ?: 1;
 
         return view('log-lens::index', compact(
             'pagedLogs',
@@ -58,6 +73,7 @@ class LogLensController extends Controller
             'resolvedIds',
             'resolvedCount',
             'pendingCount',
+            'resolveFilter',
         ));
     }
 
