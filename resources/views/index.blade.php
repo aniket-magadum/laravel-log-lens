@@ -207,7 +207,8 @@
             background: #1e293b;
             border: 1px solid #334155;
             border-radius: 0.5rem;
-            overflow: hidden;
+            overflow: clip;          /* clips visually but never traps scroll */
+            -webkit-overflow-scrolling: touch;
         }
 
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -266,7 +267,11 @@
         .file-col { color: #64748b; font-size: 0.75rem; white-space: nowrap; }
 
         /* Collapsible rows */
-        .log-summary { cursor: pointer; user-select: none; }
+        .log-summary {
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;  /* prevents iOS 300ms delay / scroll trap */
+        }
 
         .message-preview {
             color: #cbd5e1;
@@ -338,6 +343,88 @@
         .pagination-links a:hover  { background: #334155; }
         .pagination-links span.current { background: #6366f1; border-color: #6366f1; color: #fff; }
         .pagination-links span.disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 640px) {
+            header { padding: 0.625rem 1rem; }
+            header h1 { font-size: 1rem; }
+
+            .level-strip  { padding: 0.4rem 1rem; }
+            .filter-strip { padding: 0.5rem 1rem; }
+
+            .filter-strip-inner { flex-wrap: wrap; gap: 0.4rem; }
+            .file-dropdown { flex: 0 0 auto; }
+            .file-dropdown-btn { white-space: nowrap; }
+            .filters input[type=text] { flex: 1 1 0; min-width: 120px; }
+            .filter-actions { display: flex; gap: 0.4rem; width: 100%; }
+            .filter-actions .btn { flex: 1; text-align: center; }
+
+            .container { padding: 0.75rem; }
+
+            /* ── Card layout: ditch table columns, stack rows as cards ── */
+            .table-wrapper {
+                background: transparent;
+                border: none;
+                border-radius: 0;
+                overflow: visible;
+            }
+
+            table, tbody { display: block; width: 100%; }
+            thead { display: none; }
+
+            /* Each summary row → flex card */
+            tr.log-summary {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 0.375rem;
+                margin-bottom: 0.25rem;
+                padding: 0.6rem 0.75rem;
+            }
+
+            tr.log-summary td {
+                display: block;
+                padding: 0;
+                border: none;
+                background: transparent;
+            }
+
+            tr.log-summary td.datetime,
+            tr.log-summary td.file-col { display: none; }
+
+            /* Level badge cell */
+            tr.log-summary td:nth-child(2) { flex: 0 0 auto; }
+
+            /* Message cell fills the rest */
+            tr.log-summary td:nth-child(3) {
+                flex: 1 1 0;
+                min-width: 0;
+                overflow: hidden;
+            }
+
+            /* Detail row opens as a full-width block under the card */
+            tr.log-detail.open {
+                display: block;
+                margin-top: -0.3rem;
+                margin-bottom: 0.25rem;
+                border: 1px solid #334155;
+                border-top: none;
+                border-radius: 0 0 0.375rem 0.375rem;
+                background: #0a1020;
+            }
+
+            tr.log-detail td {
+                display: block;
+                padding: 0.625rem 0.75rem;
+            }
+
+            .log-detail .detail-meta { flex-direction: column; gap: 0.25rem; }
+
+            .pagination { flex-direction: column; align-items: flex-start; gap: 0.625rem; }
+            .pagination-links { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
@@ -399,8 +486,10 @@
 
                 <input type="text" name="search" placeholder="Search messages…" value="{{ $search }}">
 
-                <button type="submit" class="btn btn-primary">Filter</button>
-                <a href="{{ route('log-lens.index') }}" class="btn btn-secondary">Reset</a>
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a href="{{ route('log-lens.index') }}" class="btn btn-secondary">Reset</a>
+                </div>
             </form>
         </div>
     </div>
