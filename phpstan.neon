@@ -4,6 +4,8 @@ parameters:
 
     level: 5
 
+    reportUnmatchedIgnoredErrors: false
+
     ignoreErrors:
         # Laravel helper functions (config, view, response, storage_path, etc.) are
         # provided by the framework at runtime and not declared in illuminate/* stubs.
