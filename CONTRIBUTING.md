@@ -21,7 +21,6 @@ Work inside `src/`, `tests/`, `config/`, `resources/`, and `routes/`.
 ## Running Tests
 
 ```bash
-cd packages/aniket-magadum/laravel-log-lens
 composer test
 ```
 
@@ -47,8 +46,8 @@ vendor/bin/pint --dirty
 
 ## Submitting a Pull Request
 
-1. Fork the monorepo and create a branch from `main`.
-2. Make your changes inside `packages/aniket-magadum/laravel-log-lens/`.
+1. Fork the repo and create a branch from `main`.
+2. Make your changes inside `src/`, `tests/`, `config/`, `resources/`, and `routes/`.
 3. Ensure tests pass and PHPStan reports no errors.
 4. Open a pull request against `main` with a clear description of what changed.
 
@@ -56,9 +55,7 @@ vendor/bin/pint --dirty
 
 ## Release Process (Maintainers Only)
 
-> The standalone package repo (`github.com/aniket-magadum/laravel-log-lens`) is kept in sync via `git subtree split`. **Never push directly to it** — always go through the steps below.
-
-### 1. Commit all changes to the monorepo
+### 1. Commit all changes
 
 Make sure everything is committed on `main`:
 
@@ -67,31 +64,9 @@ git add .
 git commit -m "Your change description"
 ```
 
-### 2. Update the version (if applicable)
+### 2. Tag the release
 
 There is no `version` field in `composer.json` — versioning is driven entirely by **git tags**. Packagist picks up the tag automatically.
-
-### 3. Split the subtree
-
-Extract only the package's history into a local branch:
-
-```bash
-git branch -D release/laravel-log-lens 2>/dev/null
-git subtree split --prefix=packages/aniket-magadum/laravel-log-lens -b release/laravel-log-lens
-```
-
-### 4. Push to the package repo
-
-```bash
-git push package release/laravel-log-lens:main
-```
-
-> First time only — add the remote if it isn't already present:
-> ```bash
-> git remote add package git@github.com:aniket-magadum/laravel-log-lens.git
-> ```
-
-### 5. Tag the release
 
 Follow [Semantic Versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`
 
@@ -102,11 +77,11 @@ Follow [Semantic Versioning](https://semver.org/): `vMAJOR.MINOR.PATCH`
 | Bug fix | `v1.0.1` |
 
 ```bash
-git tag vX.Y.Z release/laravel-log-lens
-git push package vX.Y.Z
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-### 6. Create a GitHub Release
+### 3. Create a GitHub Release
 
 On `github.com/aniket-magadum/laravel-log-lens`:
 
@@ -117,7 +92,7 @@ On `github.com/aniket-magadum/laravel-log-lens`:
 
 Packagist will pick up the new tag automatically via the GitHub webhook.
 
-### 7. Verify on Packagist
+### 4. Verify on Packagist
 
 Check `packagist.org/packages/aniket-magadum/laravel-log-lens` to confirm the new version appears.
 
