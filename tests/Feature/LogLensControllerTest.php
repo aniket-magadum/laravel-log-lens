@@ -390,3 +390,67 @@ it('shows all files when _files_set is present and no log_file[] is checked', fu
         ->assertSee('Today entry')
         ->assertSee('Generic entry');
 });
+
+// ─── Resolve-all endpoint ─────────────────────────────────────────────────────
+
+it('resolves all matching error entries via message_hash', function () {
+    $msg = 'Connection timed out';
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.ERROR: {$msg}\n".
+        "[2026-03-21 10:00:01] local.ERROR: {$msg}\n".
+        "[2026-03-21 10:00:02] local.ERROR: Different error\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->postJson('/log-lens/resolve-all', ['message_hash' => md5($msg)])
+        ->assertOk()
+        ->assertJson(['resolved' => 2]);
+});
+
+it('returns 422 when message_hash is missing', function () {
+    ($this->bindLogLens)();
+
+    $this->postJson('/log-lens/resolve-all', [])
+        ->assertStatus(422)
+        ->assertJson(['error' => 'message_hash is required']);
+});
+
+it('returns 422 when message_hash is not a valid md5 hex string', function () {
+    ($this->bindLogLens)();
+
+    $this->postJson('/log-lens/resolve-all', ['message_hash' => 'not-a-hash'])
+        ->assertStatus(422)
+        ->assertJson(['error' => 'message_hash is required']);
+});
+
+it('does not resolve debug or info entries via resolve-all', function () {
+    $msg = 'Informational message';
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.INFO: {$msg}\n".
+        "[2026-03-21 10:00:01] local.DEBUG: {$msg}\n"
+    );
+    ($this->bindLogLens)();
+
+    $this->postJson('/log-lens/resolve-all', ['message_hash' => md5($msg)])
+        ->assertOk()
+        ->assertJson(['resolved' => 0]);
+});
+
+it('returns zero resolved when all matching entries are already resolved', function () {
+    $msg = 'Already resolved error';
+    file_put_contents(
+        $this->storagePath.'/laravel.log',
+        "[2026-03-21 10:00:00] local.ERROR: {$msg}\n"
+    );
+    ($this->bindLogLens)();
+
+    // Resolve once
+    $this->postJson('/log-lens/resolve-all', ['message_hash' => md5($msg)])->assertOk();
+
+    // Second call should return 0
+    $this->postJson('/log-lens/resolve-all', ['message_hash' => md5($msg)])
+        ->assertOk()
+        ->assertJson(['resolved' => 0]);
+});

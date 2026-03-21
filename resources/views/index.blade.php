@@ -1017,7 +1017,7 @@
                             $logId = $isResolvable ? $logHash : '';
                             $isResolved = $isResolvable && in_array($logId, $resolvedIds, true);
                         @endphp
-                        <tr id="log-{{ $logHash }}" class="log-summary {{ $isResolved ? 'resolved' : '' }}{{ $highlightLogId === $logHash ? ' log-highlight' : '' }}" data-log-message="{{ e($log['message']) }}" data-resolvable="{{ $isResolvable ? '1' : '0' }}" onclick="toggleRow({{ $idx }})">
+                        <tr id="log-{{ $logHash }}" class="log-summary {{ $isResolved ? 'resolved' : '' }}{{ $highlightLogId === $logHash ? ' log-highlight' : '' }}" data-message-hash="{{ md5($log['message']) }}" data-resolvable="{{ $isResolvable ? '1' : '0' }}" onclick="toggleRow({{ $idx }})">
                             <td class="datetime">{{ $log['datetime'] }}</td>
                             <td>
                                 <span class="level-badge level-{{ $log['level'] }}">{{ $log['level'] }}</span>
@@ -1050,7 +1050,7 @@
                                     @if ($isResolvable)
                                         <div>
                                             <button class="resolve-all-btn"
-                                                    onclick="resolveAllByMessage({{ json_encode($log['message']) }})"
+                                                    onclick="resolveAllByMessage('{{ md5($log['message']) }}')"
                                                     title="Resolve all log entries with this exact message">&#10003;&#10003; Resolve all similar</button>
                                         </div>
                                     @endif
@@ -1450,7 +1450,7 @@
         .catch(function () {});
     }
 
-    function resolveAllByMessage(message) {
+    function resolveAllByMessage(messageHash) {
         const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
         fetch(resolveAllUrl, {
             method: 'POST',
@@ -1458,7 +1458,7 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken,
             },
-            body: JSON.stringify({ message: message }),
+            body: JSON.stringify({ message_hash: messageHash }),
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
@@ -1472,7 +1472,7 @@
             const allSummaryRows = Array.from(document.querySelectorAll('tr.log-summary'));
             allSummaryRows.forEach(function (row, idx) {
                 if (row.dataset.resolvable !== '1') { return; }
-                if (row.dataset.logMessage !== message) { return; }
+                if (row.dataset.messageHash !== messageHash) { return; }
                 if (row.classList.contains('resolved')) { return; }
                 row.classList.add('resolved');
                 const detailRow = document.getElementById('log-detail-' + idx);

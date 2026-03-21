@@ -138,10 +138,10 @@ class LogLensController extends Controller
 
     public function resolveAllByMessage(Request $request): JsonResponse
     {
-        $message = (string) ($request->input('message') ?? '');
+        $messageHash = (string) ($request->input('message_hash') ?? '');
 
-        if ($message === '') {
-            return response()->json(['error' => 'Message is required'], 422);
+        if (! preg_match('/^[0-9a-f]{32}$/', $messageHash)) {
+            return response()->json(['error' => 'message_hash is required'], 422);
         }
 
         $allLogs = $this->logLens->filter([], [], [], []);
@@ -153,7 +153,7 @@ class LogLensController extends Controller
                 continue;
             }
 
-            if ($log['message'] !== $message) {
+            if (md5($log['message']) !== $messageHash) {
                 continue;
             }
 
