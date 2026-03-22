@@ -853,7 +853,135 @@
             .pagination { flex-direction: column; align-items: flex-start; gap: 0.625rem; }
             .pagination-links { flex-wrap: wrap; }
         }
+
+        /* ── Theme toggle button ─────────────────────────────────────────────── */
+        .theme-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: transparent;
+            border: 1px solid #334155;
+            color: #64748b;
+            font-size: 0.8rem;
+            font-family: inherit;
+            padding: 0.25rem 0.55rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: border-color 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+        .theme-btn:hover { border-color: #6366f1; color: #a5b4fc; }
+
+        /* ── Light theme overrides (html.ll-light) ───────────────────────────── */
+        .ll-light body                              { background: #f8fafc; color: #64748b; }
+        .ll-light header                            { background: #fff; border-bottom-color: #e2e8f0; }
+        .ll-light header h1                         { color: #0f172a; }
+        .ll-light header span                       { color: #94a3b8; }
+        .ll-light .theme-btn                        { border-color: #e2e8f0; color: #64748b; }
+        .ll-light .theme-btn:hover                  { border-color: #6366f1; color: #4f46e5; }
+        .ll-light .sticky-top                       { background: #f8fafc; }
+        .ll-light .level-strip                      { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+        .ll-light .filter-strip                     { background: #f8fafc; border-bottom-color: #e2e8f0; }
+        .ll-light .resolve-toggle                   { border-color: #e2e8f0; }
+        .ll-light .resolve-toggle-btn               { color: #94a3b8; border-right-color: #e2e8f0; }
+        .ll-light .resolve-toggle-btn:hover         { background: #f1f5f9; color: #475569; }
+        .ll-light .resolve-toggle-btn.active-all    { background: #e2e8f0; color: #0f172a; }
+        .ll-light .badge-all                        { background: #e2e8f0; color: #475569; }
+        .ll-light .badge-debug                      { background: #dbeafe; color: #1d4ed8; }
+        .ll-light .badge-info                       { background: #dcfce7; color: #15803d; }
+        .ll-light .badge-notice                     { background: #fafaf9; color: #57534e; }
+        .ll-light .badge-warning                    { background: #ffedd5; color: #c2410c; }
+        .ll-light .badge-error                      { background: #fee2e2; color: #b91c1c; }
+        .ll-light .badge-critical,
+        .ll-light .badge-alert,
+        .ll-light .badge-emergency                  { background: #fce7f3; color: #be185d; }
+        .ll-light .filters input[type=text]         { background: #fff; border-color: #cbd5e1; color: #334155; }
+        .ll-light .filters input[type=text]:focus   { border-color: #6366f1; }
+        .ll-light .search-chip-wrapper              { background: #fff; border-color: #cbd5e1; }
+        .ll-light .search-chip-wrapper:focus-within { border-color: #6366f1; }
+        .ll-light .search-chip                      { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+        .ll-light .chip-remove                      { color: #6366f1; }
+        .ll-light .chip-remove:hover                { color: #4338ca; }
+        .ll-light .search-chip-input                { color: #334155; }
+        .ll-light .ctx-filter-chip                  { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+        .ll-light .ctx-filter-chip .chip-remove     { color: #0f766e; }
+        .ll-light .ctx-combo-input                  { background: #fff; border-color: #cbd5e1; color: #334155; }
+        .ll-light .ctx-combo-input:focus            { border-color: #6366f1; }
+        .ll-light .ctx-combo-list                   { background: #fff; border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .ll-light .ctx-combo-option                 { color: #334155; }
+        .ll-light .ctx-combo-option:hover,
+        .ll-light .ctx-combo-option.highlighted     { background: #f1f5f9; }
+        .ll-light .ctx-combo-empty                  { color: #94a3b8; }
+        .ll-light .file-dropdown-btn                { background: #fff; border-color: #cbd5e1; color: #475569; }
+        .ll-light .file-dropdown-btn:focus,
+        .ll-light .file-dropdown-btn:hover          { border-color: #6366f1; }
+        .ll-light .file-dropdown-btn.active         { border-color: #6366f1; color: #4f46e5; }
+        .ll-light .file-dropdown-menu               { background: #fff; border-color: #e2e8f0; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .ll-light .file-option                      { color: #334155; }
+        .ll-light .file-option:hover                { background: #f1f5f9; }
+        .ll-light .btn-secondary                    { background: #e2e8f0; color: #475569; }
+        .ll-light .btn-secondary:hover              { background: #cbd5e1; }
+        .ll-light .table-wrapper                    { background: #fff; border-color: #e2e8f0; }
+        .ll-light thead tr                          { background: #f8fafc; }
+        .ll-light th                                { color: #94a3b8; border-bottom-color: #e2e8f0; }
+        .ll-light td                                { border-bottom-color: #f1f5f9; }
+        .ll-light tbody tr                          { background: #fff; }
+        .ll-light tbody tr:hover                    { background: #f8fafc; }
+        .ll-light .level-debug                      { background: #dbeafe; color: #1d4ed8; }
+        .ll-light .level-info                       { background: #dcfce7; color: #15803d; }
+        .ll-light .level-notice                     { background: #fafaf9; color: #57534e; }
+        .ll-light .level-warning                    { background: #ffedd5; color: #c2410c; }
+        .ll-light .level-error                      { background: #fee2e2; color: #b91c1c; }
+        .ll-light .level-critical,
+        .ll-light .level-alert,
+        .ll-light .level-emergency                  { background: #fce7f3; color: #be185d; }
+        .ll-light .datetime                         { color: #94a3b8; }
+        .ll-light .file-col                         { color: #94a3b8; }
+        .ll-light .message-preview                  { color: #334155; }
+        .ll-light .log-detail                       { background: #f1f5f9 !important; }
+        .ll-light .log-detail td                    { border-bottom-color: #e2e8f0; }
+        .ll-light .log-detail .detail-meta          { color: #94a3b8; }
+        .ll-light .log-detail .detail-meta span     { color: #475569; }
+        .ll-light .detail-message                   { color: #334155; background: #f8fafc; border-color: #e2e8f0; }
+        .ll-light .context-label                    { color: #94a3b8; }
+        .ll-light .context-pill                     { border-color: #e2e8f0; }
+        .ll-light .context-pill:hover               { border-color: #cbd5e1; }
+        .ll-light .context-pill:hover .context-pill-key { background: #e2e8f0; }
+        .ll-light .context-pill-key                 { background: #f1f5f9; color: #94a3b8; border-right-color: #e2e8f0; }
+        .ll-light .context-pill-val                 { color: #475569; }
+        .ll-light .exception-block pre              { background: #fff1f2; border-color: #fecdd3; }
+        .ll-light .trace-app                        { color: #b91c1c; }
+        .ll-light .trace-vendor                     { color: #cbd5e1; }
+        .ll-light .resolve-btn                      { border-color: #e2e8f0; color: #94a3b8; }
+        .ll-light .resolve-btn.resolved             { border-color: #22c55e; background: #f0fdf4; color: #16a34a; }
+        .ll-light .share-btn                        { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+        .ll-light .share-btn:hover                  { background: #dbeafe; color: #1d4ed8; }
+        .ll-light .resolve-all-btn                  { border-color: #e2e8f0; color: #94a3b8; }
+        .ll-light .resolved-badge                   { color: #16a34a; background: #f0fdf4; border-color: #86efac; }
+        .ll-light .log-highlight > td               { background: rgba(59,130,246,0.1) !important; }
+        .ll-light #log-lens-toast                   { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+        .ll-light .pagination-info                  { color: #94a3b8; }
+        .ll-light .pagination-links a,
+        .ll-light .pagination-links span            { background: #fff; border-color: #e2e8f0; color: #475569; }
+        .ll-light .pagination-links a:hover         { background: #f1f5f9; }
+        .ll-light .bmc-btn                          { background: #FFDD00; color: #000; }
+        @media (max-width: 640px) {
+            .ll-light tr.log-summary   { background: #fff; border-color: #e2e8f0; }
+            .ll-light tr.log-detail.open { border-color: #e2e8f0; background: #f1f5f9; }
+        }
     </style>
+    <script>
+        /* Anti-FOUC: apply stored theme before first paint */
+        (function () {
+            var t = localStorage.getItem('ll-theme') || 'system';
+            document.documentElement.dataset.theme = t;
+            var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (t === 'light' || (t === 'system' && !prefersDark)) {
+                document.documentElement.classList.add('ll-light');
+            }
+        }());
+    </script>
 </head>
 <body>
 
@@ -876,6 +1004,7 @@
                         class="resolve-toggle-btn {{ $resolveFilter === 'resolved' ? 'active-resolved' : '' }}"
                         onclick="setResolveFilter('resolved')">&#10003; Resolved <span data-stat="resolved" class="resolve-toggle-count">{{ $resolvedCount }}</span></button>
             </div>
+            <button id="theme-toggle" class="theme-btn" title="Toggle theme"></button>
             <a href="https://buymeacoffee.com/aniketmagadum" target="_blank" rel="noopener noreferrer" class="bmc-btn">&#9749; Buy me a coffee</a>
         </div>
     </header>
@@ -1534,6 +1663,39 @@
         if (idx !== -1) { toggleRow(idx); }
         setTimeout(function () { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
     }());
+
+    // ── Theme toggle ──────────────────────────────────────────────────────────
+    const THEME_MODES  = ['system', 'dark', 'light'];
+    const THEME_ICONS  = { system: '\u2699\uFE0F', dark: '\uD83C\uDF19', light: '\u2600\uFE0F' };
+    const THEME_LABELS = { system: 'System default', dark: 'Dark mode', light: 'Light mode' };
+
+    function applyTheme(mode) {
+        const html = document.documentElement;
+        html.dataset.theme = mode;
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isLight = mode === 'light' || (mode === 'system' && !prefersDark);
+        html.classList.toggle('ll-light', isLight);
+        localStorage.setItem('ll-theme', mode);
+        const btn = document.getElementById('theme-toggle');
+        if (btn) { btn.textContent = THEME_ICONS[mode]; btn.title = THEME_LABELS[mode]; }
+    }
+
+    (function () {
+        const stored = localStorage.getItem('ll-theme') || 'system';
+        applyTheme(stored);
+    }());
+
+    document.getElementById('theme-toggle').addEventListener('click', function () {
+        const current = document.documentElement.dataset.theme || 'system';
+        const next = THEME_MODES[(THEME_MODES.indexOf(current) + 1) % THEME_MODES.length];
+        applyTheme(next);
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+        if ((document.documentElement.dataset.theme || 'system') === 'system') {
+            applyTheme('system');
+        }
+    });
 </script>
 </body>
 </html>

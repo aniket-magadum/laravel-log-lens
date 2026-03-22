@@ -25,6 +25,7 @@ beforeEach(function () {
 
 afterEach(function () {
     File::deleteDirectory($this->storagePath);
+    @unlink(storage_path('app/log-lens-resolved.json'));
 });
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
